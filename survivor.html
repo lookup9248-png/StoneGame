@@ -319,7 +319,7 @@
       const ev=evolved.has('flame');
       const rad=(46+flv*9+ps.amount*6)*(ev?1.5:1); const dps=(10+flv*5)*ps.might*(ev?1.8:1);
       const near=nearbyEnemies(player.x,player.y,rad);
-      for(const i of near){ const e=enemies[i]; if(!e||e.dead) continue; if(Math.hypot(e.x-player.x,e.y-player.y)<rad){ const before=e.hp; damageEnemy(e,dps*dt,(e.x-player.x)*0.4,(e.y-player.y)*0.4); if(ev && before>0) player.hp=Math.min(player.maxhp,player.hp+dps*dt*0.04); } }
+      for(const i of near){ const e=enemies[i]; if(!e||e.dead) continue; if(Math.hypot(e.x-player.x,e.y-player.y)<rad){ const before=e.hp; damageEnemy(e,dps*dt,0,0); if(ev && before>0) player.hp=Math.min(player.maxhp,player.hp+dps*dt*0.04); } }
       player._flameR=rad; player._flameEv=ev;
     } else player._flameR=0;
 
