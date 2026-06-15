@@ -12,22 +12,36 @@
     overflow: hidden; display: flex; flex-direction: column;
     align-items: center; justify-content: center; user-select: none;
   }
-  #hud { display: flex; gap: 18px; margin-bottom: 8px; font-size: 13px; letter-spacing: 1px; }
+  #hud { display: flex; gap: 16px; margin-bottom: 8px; font-size: 13px; letter-spacing: 1px; }
   #hud b { color: #fff; font-weight: 800; }
   #hud .s { color: #4af0c8; }
   #hud .v { color: #ff6b6b; }
   #hud .st { color: #ffd60a; }
   #wrap { position: relative; box-shadow: 0 0 40px rgba(74,240,200,0.18), inset 0 0 0 3px rgba(74,240,200,0.3); border-radius: 8px; overflow: hidden; }
   canvas { display: block; background: #06060d; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; }
-  #overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(6,6,13,0.9); text-align: center; gap: 12px; backdrop-filter: blur(2px); padding: 20px; }
-  #overlay.hidden { display: none; }
-  #overlay h1 { font-size: 28px; color: #4af0c8; text-shadow: 0 0 14px rgba(74,240,200,0.7); }
-  #overlay p { font-size: 13px; color: #9fb3c8; line-height: 1.7; }
-  #legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 12px; color: #9fb3c8; margin-top: 4px; text-align: left; }
+  .panel { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(6,6,13,0.93); text-align: center; gap: 12px; backdrop-filter: blur(3px); padding: 22px; }
+  .panel.hidden { display: none; }
+  .panel h1 { font-size: 27px; color: #4af0c8; text-shadow: 0 0 14px rgba(74,240,200,0.7); }
+  .panel h2 { font-size: 22px; color: #ffd60a; }
+  .panel p { font-size: 13px; color: #9fb3c8; line-height: 1.7; }
+  #legend { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 14px; font-size: 11px; color: #9fb3c8; margin-top: 2px; text-align: left; }
   #legend i { display:inline-block; width:11px; height:11px; border:2px solid #0a0a16; vertical-align:-1px; margin-right:5px; }
-  #playBtn { margin-top: 8px; padding: 11px 32px; background: #4af0c8; color: #06060d; border: 2px solid #06363a; border-radius: 999px; font-size: 16px; font-weight: 800; cursor: pointer; box-shadow: 0 0 22px rgba(74,240,200,0.5); }
-  #playBtn:active { transform: scale(0.96); }
-  #hint { margin-top: 10px; font-size: 11px; color: #5a6b7d; text-align:center; }
+  .btn { padding: 10px 30px; background: #4af0c8; color: #06060d; border: 2px solid #06363a; border-radius: 999px; font-size: 16px; font-weight: 800; cursor: pointer; box-shadow: 0 0 22px rgba(74,240,200,0.45); }
+  .btn:active { transform: scale(0.96); }
+  .ghost { background: transparent; color: #4af0c8; box-shadow: none; border: 2px solid rgba(74,240,200,0.4); font-size: 14px; padding: 8px 22px; }
+  #nameInput { width: 80%; max-width: 260px; padding: 11px 14px; border-radius: 10px; border: 2px solid #2a3a4a; background: #0e1420; color: #fff; font-size: 16px; text-align: center; outline: none; }
+  #nameInput:focus { border-color: #4af0c8; }
+  #rankList { width: 100%; max-width: 360px; max-height: 360px; overflow-y: auto; margin: 6px 0; }
+  #rankList .row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 14px; }
+  #rankList .row:nth-child(odd) { background: rgba(255,255,255,0.04); }
+  #rankList .row.hl { background: rgba(74,240,200,0.22); box-shadow: inset 0 0 0 1px rgba(74,240,200,0.5); }
+  #rankList .rk { width: 30px; text-align: center; font-weight: 800; }
+  #rankList .nm { flex: 1; text-align: left; color: #fff; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #rankList .sc { color: #4af0c8; font-weight: 800; }
+  #rankList .sg { color: #8a9bb0; font-size: 11px; width: 42px; text-align: right; }
+  #rankList .empty { color: #8a9bb0; padding: 30px 10px; }
+  #rankResult { color: #ffd60a; font-size: 13px; min-height: 16px; }
+  #hint { margin-top: 10px; font-size: 11px; color: #5a6b7d; text-align:center; line-height:1.6; }
 </style>
 </head>
 <body>
@@ -39,19 +53,36 @@
   </div>
   <div id="wrap">
     <canvas id="game" width="462" height="640"></canvas>
-    <div id="overlay">
+
+    <div id="overlay" class="panel">
       <h1>네온 벽돌깨기</h1>
-      <p>공을 튕겨 벽돌을 부수고 10개 스테이지를 클리어하세요!<br>벽돌을 깨면 랜덤으로 아이템이 떨어집니다.</p>
+      <p>공을 튕겨 벽돌을 부수고 10개 스테이지를 클리어!<br>벽돌을 깨면 아이템이 떨어지고, 효과는 서로 중첩됩니다.</p>
       <div id="legend">
-        <span><i style="background:#2ec4b6"></i>1번 (약함)</span>
-        <span><i style="background:#ff9f1c"></i>2번 (단단)</span>
-        <span><i style="background:#ff3b3b"></i>3번 (튼튼)</span>
-        <span><i style="background:#7a8194"></i>맨틀 (안 깨짐)</span>
+        <span><i style="background:#2ec4b6"></i>1번 벽돌 (약함)</span>
+        <span><i style="background:#ff9f1c"></i>2번 벽돌 (단단)</span>
+        <span><i style="background:#ff3b3b"></i>3번 벽돌 (튼튼)</span>
+        <span><i style="background:#ffd60a"></i>콤보로 점수 폭발!</span>
       </div>
-      <button id="playBtn">▶ 시작</button>
+      <button id="playBtn" class="btn">▶ 시작</button>
+      <button id="rankBtn" class="ghost">🏆 랭킹 보기</button>
+    </div>
+
+    <div id="rankPanel" class="panel hidden">
+      <h2>🏆 랭킹 TOP 20</h2>
+      <div id="rankResult"></div>
+      <div id="rankList"></div>
+      <button id="rankBack" class="ghost">← 돌아가기</button>
+    </div>
+
+    <div id="namePanel" class="panel hidden">
+      <h2>🎉 랭킹 등록!</h2>
+      <p id="nameMsg"></p>
+      <input id="nameInput" maxlength="10" placeholder="닉네임 (최대 10자)" autocomplete="off">
+      <button id="nameSubmit" class="btn">등록하기</button>
+      <button id="nameSkip" class="ghost">건너뛰기</button>
     </div>
   </div>
-  <div id="hint">← → / A D · 마우스 · 모바일 드래그 · 탭/스페이스 발사<br>아이템: 🟦멀티볼 🟩발판확대 🟪발판축소 🟧슬로우 ❤️생명</div>
+  <div id="hint">← → / A D · 마우스 · 모바일 드래그 · 탭/스페이스 발사·발동<br>아이템: 🔥불공(관통) · ⚡레이저발판 · 🟢찐득이발판 · 🔵멀티볼 · 🟩발판확대 · 🟧슬로우 · ❤️생명</div>
 
 <script>
 (() => {
@@ -66,6 +97,18 @@
   const stageEl = document.getElementById('stage');
   const overlay = document.getElementById('overlay');
   const playBtn = document.getElementById('playBtn');
+  const rankBtn = document.getElementById('rankBtn');
+  const rankPanel = document.getElementById('rankPanel');
+  const rankList = document.getElementById('rankList');
+  const rankResult = document.getElementById('rankResult');
+  const rankBack = document.getElementById('rankBack');
+  const namePanel = document.getElementById('namePanel');
+  const nameMsg = document.getElementById('nameMsg');
+  const nameInput = document.getElementById('nameInput');
+  const nameSubmit = document.getElementById('nameSubmit');
+  const nameSkip = document.getElementById('nameSkip');
+
+  const API_URL = '/api/scores';
 
   function fit() {
     const maxW = Math.min(window.innerWidth - 20, W);
@@ -79,7 +122,6 @@
   const OUTLINE = '#0a0a16';
   const HP_COLOR = { 1:'#2ec4b6', 2:'#ff9f1c', 3:'#ff3b3b' };
   const HP_LIGHT = { 1:'#7fe3d9', 2:'#ffc578', 3:'#ff8e8e' };
-  const SOLID_COLOR = '#7a8194', SOLID_LIGHT = '#aab2c4', SOLID_DARK = '#565c6b';
 
   const COLS = 11;
   const STAGES = [
@@ -88,18 +130,19 @@
     [ ".....2.....","....212....","...21212...","..2121212..","...21212...","....212....",".....2....." ],
     [ ".22.....22.","2222...2222","22222222222",".222222222.","..2222222..","....222....",".....2....." ],
     [ "2.2.2.2.2.2",".1.1.1.1.1.","2.2.2.2.2.2",".1.1.1.1.1.","2.2.2.2.2.2" ],
-    [ ".....#.....","....#2#....","...#212#...","..#21312#..","...#212#...","....#2#....",".....#....." ],
-    [ "1#1#1#1#1#1","1#1#1#1#1#1","2#2#2#2#2#2","22222222222","33333333333" ],
+    [ ".....1.....","....212....","...21312...","..2131312..","...21312...","....212....",".....1....." ],
+    [ "2.2.2.2.2.2","2.2.2.2.2.2","2.2.2.2.2.2","11111111111","33333333333" ],
     [ "2.........2",".2.......2.","..3.....3..","...2...2...","....2.2....",".....3.....","....2.2....","...2...2...","..3.....3..",".2.......2.","2.........2" ],
-    [ "##.......##","#...333...#","...33333...","..3333333..","...33333...","#...333...#","##.......##" ],
-    [ "###########","#333333333#","#322222223#","#321111123#","#322222223#","#333333333#","###########" ],
+    [ "....333....","....333....","33333333333","33333333333","....333....","....333...." ],
+    [ "33333333333","32222222223","32111111123","32111111123","32222222223","33333333333" ],
   ];
 
   const PAD = 16, GAP = 4, TOPY = 56, BRICK_H = 20;
   const BRICK_W = (W - PAD*2 - GAP*(COLS-1)) / COLS;
 
-  let bricks, paddle, balls, items, score, best, lives, stage, alive, started, particles, shake, launched, timeScale, slowTimer;
-  const MAX_BALLS = 8;
+  let bricks, paddle, balls, items, lasers, score, best, lives, stage, alive, started, particles, shake, launched;
+  let timeScale, slowTimer, wideTimer, stickyTimer, laserTimer, fireTimer, laserCd, combo, comboTimer, flash;
+  const MAX_BALLS = 9;
 
   best = parseInt(localStorage.getItem('breakout_best') || '0', 10);
   bestEl.textContent = best;
@@ -124,32 +167,21 @@
       for (let c = 0; c < COLS; c++) {
         const ch = row[c];
         if (!ch || ch === '.') continue;
-        const x = PAD + c * (BRICK_W + GAP);
-        const y = TOPY + r * (BRICK_H + GAP);
-        if (ch === '#') arr.push({ x, y, w: BRICK_W, h: BRICK_H, type:'solid', hp: Infinity, alive: true });
-        else arr.push({ x, y, w: BRICK_W, h: BRICK_H, type:'normal', hp: parseInt(ch,10), alive: true });
+        arr.push({ x: PAD + c*(BRICK_W+GAP), y: TOPY + r*(BRICK_H+GAP), w: BRICK_W, h: BRICK_H, hp: parseInt(ch,10), alive: true });
       }
     }
     return arr;
   }
+  function bricksLeft() { return bricks.some(b => b.alive); }
 
-  function breakableLeft() { return bricks.some(b => b.alive && b.type === 'normal'); }
-
-  function ballSpeed() { return 5.4 + (stage - 1) * 0.55; }
-  function makeBall(x, y, vx, vy) { return { x, y, vx, vy, r: 7, speed: ballSpeed() }; }
-
-  function setPaddleMode(mode) {
-    const cx = paddle.x + paddle.w/2;
-    paddle.mode = mode;
-    const mult = mode === 'wide' ? 1.7 : mode === 'narrow' ? 0.6 : 1;
-    paddle.w = Math.round(paddle.baseW * mult);
-    paddle.x = Math.max(0, Math.min(W - paddle.w, cx - paddle.w/2));
-  }
+  function ballSpeed() { return 5.6 + (stage - 1) * 0.6; }
+  function makeBall(x, y, vx, vy) { return { x, y, vx, vy, r: 7, speed: ballSpeed(), stuck:false, stuckDX:0 }; }
 
   function resetBallPaddle() {
-    paddle = { baseW: 84, w: 84, h: 15, x: W/2 - 42, y: H - 44, speed: 8.5, mode:'normal', timer:0 };
+    paddle = { baseW: 84, w: 84, h: 15, x: W/2 - 42, y: H - 44, speed: 9 };
     balls = [ makeBall(W/2, paddle.y - 12, 0, 0) ];
-    items = []; launched = false; timeScale = 1; slowTimer = 0;
+    items = []; lasers = []; launched = false;
+    timeScale = 1; slowTimer = 0; wideTimer = 0; stickyTimer = 0; laserTimer = 0; fireTimer = 0; laserCd = 0;
   }
 
   function nextStage(first) {
@@ -163,17 +195,22 @@
 
   function startGame() {
     score = 0; lives = 3; stage = 1; alive = true; started = true;
-    particles = []; shake = 0;
+    particles = []; shake = 0; combo = 0; comboTimer = 0; flash = 0;
+    hidePanels();
     nextStage(true);
-    overlay.classList.add('hidden');
     if (actx && actx.state === 'suspended') actx.resume();
   }
+
+  function hidePanels(){ overlay.classList.add('hidden'); rankPanel.classList.add('hidden'); namePanel.classList.add('hidden'); }
 
   function updateHud() {
     scoreEl.textContent = score;
     lifeEl.textContent = '♥'.repeat(Math.max(0, lives)) || '–';
     stageEl.textContent = stage + '/10';
   }
+
+  function comboMult() { return 1 + Math.floor(combo / 4); }
+  function addCombo() { combo++; comboTimer = 150; }
 
   function launch() {
     if (launched || !started || !alive) return;
@@ -184,78 +221,105 @@
     beep(520, 0.06, 'square', 0.05);
   }
 
+  function action() {
+    if (!started || !alive) return;
+    if (!launched) { launch(); return; }
+    let released = false;
+    for (const b of balls) if (b.stuck) {
+      b.stuck = false;
+      const ang = (-Math.PI/2) + (Math.random()-0.5)*0.4;
+      b.vx = Math.cos(ang)*b.speed; b.vy = Math.sin(ang)*b.speed;
+      released = true;
+    }
+    if (released) { beep(520,0.05,'square',0.05); return; }
+    if (laserTimer > 0) fireLaser();
+  }
+
+  function fireLaser() {
+    if (laserCd > 0) return;
+    laserCd = 11;
+    lasers.push({ x: paddle.x + 6, y: paddle.y, vy: -11 });
+    lasers.push({ x: paddle.x + paddle.w - 6, y: paddle.y, vy: -11 });
+    beep(880, 0.04, 'sawtooth', 0.05);
+  }
+
   function addParticles(px, py, color, n=10) {
     for (let i=0;i<n;i++) particles.push({ x:px, y:py, vx:(Math.random()-0.5)*5, vy:(Math.random()-0.5)*5, life:1, color });
   }
 
   const ITEM_DEFS = {
+    F: { color:'#ff5a1f', label:'🔥' },
+    R: { color:'#36d1ff', label:'⚡' },
+    G: { color:'#7be04a', label:'🟢' },
     M: { color:'#3aa0ff', label:'M' },
     W: { color:'#46d66a', label:'W' },
-    S: { color:'#b15cff', label:'S' },
     D: { color:'#ff9f1c', label:'D' },
     L: { color:'#ff5d7a', label:'♥' },
   };
-  const ITEM_POOL = ['M','M','W','W','D','L','S'];
+  const ITEM_POOL = ['F','F','M','M','G','R','W','D','L'];
 
   function maybeDropItem(x, y) {
-    if (Math.random() < 0.20) {
+    if (Math.random() < 0.26) {
       const type = ITEM_POOL[(Math.random()*ITEM_POOL.length)|0];
-      items.push({ x, y, w:20, h:20, vy:2.6, type, color: ITEM_DEFS[type].color });
+      items.push({ x, y, w:22, h:22, vy:2.7, type, color: ITEM_DEFS[type].color });
     }
   }
 
   function applyItem(type) {
-    beep(760, 0.08, 'square', 0.06);
+    beep(760, 0.08, 'square', 0.06); flash = 8;
     if (type === 'M') {
       const cur = balls.slice();
       for (const b of cur) {
         if (balls.length >= MAX_BALLS) break;
-        for (let k=0;k<2 && balls.length<MAX_BALLS;k++){
-          const ang = Math.atan2(b.vy, b.vx) + (k===0 ? 0.4 : -0.4);
-          const sp = b.speed;
-          balls.push(makeBall(b.x, b.y, Math.cos(ang)*sp, Math.sin(ang)*sp));
+        const baseAng = (b.vx || b.vy) ? Math.atan2(b.vy, b.vx) : -Math.PI/2;
+        for (const dk of [0.4, -0.4]) {
+          if (balls.length >= MAX_BALLS) break;
+          const nb = makeBall(b.x, b.y, 0, 0);
+          nb.vx = Math.cos(baseAng + dk) * nb.speed; nb.vy = Math.sin(baseAng + dk) * nb.speed;
+          balls.push(nb);
         }
       }
       if (!launched) launch();
-    } else if (type === 'W') { setPaddleMode('wide'); paddle.timer = 600; }
-    else if (type === 'S') { setPaddleMode('narrow'); paddle.timer = 600; }
+    }
+    else if (type === 'F') fireTimer = 600;
+    else if (type === 'R') laserTimer = 780;
+    else if (type === 'G') stickyTimer = 720;
+    else if (type === 'W') wideTimer = 660;
     else if (type === 'D') { timeScale = 0.55; slowTimer = 480; }
     else if (type === 'L') { lives = Math.min(5, lives + 1); updateHud(); }
   }
 
+  function hitBrick(br, fromFire) {
+    if (fromFire) {
+      br.hp = 0; br.alive = false;
+      addCombo(); score += 10 * comboMult();
+      addParticles(br.x+br.w/2, br.y+br.h/2, '#ff7a2f', 12);
+      beep(640 + (combo%10)*22, 0.04, 'square', 0.05);
+    } else {
+      br.hp--;
+      if (br.hp <= 0) {
+        br.alive = false;
+        addCombo(); score += 10 * comboMult();
+        addParticles(br.x+br.w/2, br.y+br.h/2, HP_COLOR[1], 10);
+        beep(700 + (combo%12)*20, 0.05, 'square', 0.06);
+        maybeDropItem(br.x+br.w/2, br.y+br.h/2);
+      } else { score += 2; beep(500, 0.04, 'square', 0.05); }
+    }
+    updateHud();
+  }
+
   function loseLife() {
-    lives--; shake = 14; beep(120, 0.35, 'sawtooth', 0.08); updateHud();
+    lives--; shake = 14; combo = 0; comboTimer = 0; beep(120, 0.35, 'sawtooth', 0.08); updateHud();
     if (lives <= 0) return gameOver();
     resetBallPaddle();
   }
 
-  function gameOver() {
-    alive = false; saveBest();
-    setTimeout(() => {
-      overlay.classList.remove('hidden');
-      overlay.querySelector('h1').textContent = '게임 오버';
-      overlay.querySelector('p').innerHTML = '스테이지 ' + stage + '/10 · 점수 <b style="color:#fff">' + score + '</b><br>최고기록 ' + best;
-      document.getElementById('legend').style.display = 'none';
-      playBtn.textContent = '↻ 다시하기';
-    }, 600);
-  }
-
-  function victory() {
-    alive = false; saveBest();
-    setTimeout(() => {
-      overlay.classList.remove('hidden');
-      overlay.querySelector('h1').textContent = '🏆 게임 클리어!';
-      overlay.querySelector('p').innerHTML = '10개 스테이지 전부 격파!<br>최종 점수 <b style="color:#fff">' + score + '</b> · 최고기록 ' + best;
-      document.getElementById('legend').style.display = 'none';
-      playBtn.textContent = '↻ 다시하기';
-    }, 400);
-  }
-
-  function saveBest() {
-    if (score > best) { best = score; localStorage.setItem('breakout_best', String(best)); bestEl.textContent = best; }
-  }
+  function gameOver() { alive = false; saveBest(); endGame('게임 오버 · 스테이지 ' + stage + '/10'); }
+  function victory()  { alive = false; saveBest(); endGame('🏆 게임 클리어! 10스테이지 완주'); }
+  function saveBest() { if (score > best) { best = score; localStorage.setItem('breakout_best', String(best)); bestEl.textContent = best; } }
 
   function stepBall(b) {
+    if (b.stuck) { b.x = paddle.x + b.stuckDX; b.y = paddle.y - b.r - 1; return true; }
     const evx = b.vx * timeScale, evy = b.vy * timeScale;
     const steps = Math.max(1, Math.ceil(Math.max(Math.abs(evx), Math.abs(evy)) / 4));
     const sx = evx / steps, sy = evy / steps;
@@ -269,33 +333,31 @@
       if (b.vy > 0 &&
           b.y + b.r >= paddle.y && b.y + b.r <= paddle.y + paddle.h + 8 &&
           b.x >= paddle.x - b.r && b.x <= paddle.x + paddle.w + b.r) {
-        b.y = paddle.y - b.r;
-        const hit = (b.x - (paddle.x + paddle.w/2)) / (paddle.w/2);
-        const ang = (-Math.PI/2) + Math.max(-1,Math.min(1,hit)) * (Math.PI/3);
-        b.vx = Math.cos(ang) * b.speed; b.vy = Math.sin(ang) * b.speed;
-        beep(640, 0.05, 'square', 0.05);
+        if (stickyTimer > 0) {
+          b.stuck = true; b.stuckDX = Math.max(b.r, Math.min(paddle.w - b.r, b.x - paddle.x));
+          b.vx = 0; b.vy = 0; b.y = paddle.y - b.r - 1; beep(360,0.05,'square',0.05);
+        } else {
+          b.y = paddle.y - b.r;
+          const hit = (b.x - (paddle.x + paddle.w/2)) / (paddle.w/2);
+          const ang = (-Math.PI/2) + Math.max(-1,Math.min(1,hit)) * (Math.PI/3);
+          b.vx = Math.cos(ang) * b.speed; b.vy = Math.sin(ang) * b.speed;
+          beep(640, 0.05, 'square', 0.05);
+        }
       }
 
       for (const br of bricks) {
         if (!br.alive) continue;
         if (b.x + b.r > br.x && b.x - b.r < br.x + br.w &&
             b.y + b.r > br.y && b.y - b.r < br.y + br.h) {
-          const oL = (b.x + b.r) - br.x, oR = (br.x + br.w) - (b.x - b.r);
-          const oT = (b.y + b.r) - br.y, oB = (br.y + br.h) - (b.y - b.r);
-          if (Math.min(oL,oR) < Math.min(oT,oB)) b.vx = -b.vx; else b.vy = -b.vy;
-          if (br.type === 'solid') {
-            beep(220, 0.04, 'square', 0.05);
+          if (fireTimer > 0) {
+            hitBrick(br, true); // 관통: 반사 없이 계속 진행
           } else {
-            br.hp--;
-            if (br.hp <= 0) {
-              br.alive = false; score += 10;
-              addParticles(br.x + br.w/2, br.y + br.h/2, HP_COLOR[1]);
-              beep(700 + (score % 12) * 20, 0.05, 'square', 0.06);
-              maybeDropItem(br.x + br.w/2, br.y + br.h/2);
-            } else { score += 2; beep(500, 0.04, 'square', 0.05); }
-            updateHud();
+            const oL = (b.x + b.r) - br.x, oR = (br.x + br.w) - (b.x - b.r);
+            const oT = (b.y + b.r) - br.y, oB = (br.y + br.h) - (b.y - b.r);
+            if (Math.min(oL,oR) < Math.min(oT,oB)) b.vx = -b.vx; else b.vy = -b.vy;
+            hitBrick(br, false);
+            break;
           }
-          break;
         }
       }
     }
@@ -304,12 +366,21 @@
 
   function update() {
     if (!alive || !started) return;
+
+    const targetW = Math.round(paddle.baseW * (wideTimer > 0 ? 1.7 : 1));
+    if (paddle.w !== targetW) { const cx = paddle.x + paddle.w/2; paddle.w = targetW; paddle.x = cx - paddle.w/2; }
     if (keys.left)  paddle.x -= paddle.speed;
     if (keys.right) paddle.x += paddle.speed;
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
 
-    if (paddle.timer > 0) { paddle.timer--; if (paddle.timer === 0) setPaddleMode('normal'); }
-    if (slowTimer > 0) { slowTimer--; if (slowTimer === 0) timeScale = 1; }
+    if (slowTimer  > 0) { slowTimer--;  if (slowTimer === 0) timeScale = 1; }
+    if (wideTimer  > 0) wideTimer--;
+    if (stickyTimer> 0) stickyTimer--;
+    if (laserTimer > 0) laserTimer--;
+    if (fireTimer  > 0) fireTimer--;
+    if (laserCd    > 0) laserCd--;
+    if (comboTimer > 0) { comboTimer--; if (comboTimer === 0) combo = 0; }
+    if (flash > 0) flash--;
 
     if (!launched) {
       balls[0].x = paddle.x + paddle.w/2;
@@ -320,26 +391,30 @@
       if (balls.length === 0) { loseLife(); return; }
     }
 
+    for (const lz of lasers) {
+      lz.y += lz.vy;
+      if (lz.y < 0) { lz.dead = true; continue; }
+      for (const br of bricks) {
+        if (!br.alive) continue;
+        if (lz.x > br.x && lz.x < br.x + br.w && lz.y < br.y + br.h && lz.y > br.y) {
+          hitBrick(br, false); lz.dead = true; break;
+        }
+      }
+    }
+    lasers = lasers.filter(l => !l.dead);
+
     for (const it of items) {
       it.y += it.vy;
       if (it.y < paddle.y + paddle.h && it.y + it.h > paddle.y &&
-          it.x + it.w > paddle.x && it.x < paddle.x + paddle.w) { it.dead = true; applyItem(it.type); }
+          it.x + it.w/2 > paddle.x && it.x - it.w/2 < paddle.x + paddle.w) { it.dead = true; applyItem(it.type); }
       else if (it.y > H) it.dead = true;
     }
     items = items.filter(it => !it.dead);
 
-    if (started && alive && bricks && !breakableLeft()) nextStage(false);
+    if (started && alive && bricks && !bricksLeft()) nextStage(false);
   }
 
   function drawBrick(b) {
-    if (b.type === 'solid') {
-      ctx.fillStyle = OUTLINE; ctx.fillRect(b.x, b.y, b.w, b.h);
-      ctx.fillStyle = SOLID_COLOR; ctx.fillRect(b.x+2, b.y+2, b.w-4, b.h-4);
-      ctx.fillStyle = SOLID_LIGHT; ctx.fillRect(b.x+2, b.y+2, b.w-4, 3);
-      ctx.fillStyle = SOLID_DARK;  ctx.fillRect(b.x+2, b.y+b.h-5, b.w-4, 3);
-      ctx.fillStyle = SOLID_DARK;  ctx.fillRect(b.x + b.w*0.45, b.y+5, 2, b.h-10);
-      return;
-    }
     const col = HP_COLOR[b.hp] || HP_COLOR[1];
     const lit = HP_LIGHT[b.hp] || HP_LIGHT[1];
     ctx.fillStyle = OUTLINE; ctx.fillRect(b.x, b.y, b.w, b.h);
@@ -350,34 +425,66 @@
   function draw() {
     ctx.save();
     if (shake > 0) { ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake); shake*=0.85; if(shake<0.5)shake=0; }
-    ctx.fillStyle = '#06060d'; ctx.fillRect(-20,-20,W+40,H+40);
+    ctx.fillStyle = flash>0 ? '#12121f' : '#06060d'; ctx.fillRect(-20,-20,W+40,H+40);
     ctx.strokeStyle = 'rgba(74,240,200,0.05)'; ctx.lineWidth = 1;
     for (let x=0;x<=W;x+=42){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
     for (let y=0;y<=H;y+=42){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
     if (started && bricks) {
       for (const b of bricks) if (b.alive) drawBrick(b);
+
+      // 레이저
+      for (const lz of lasers) {
+        ctx.fillStyle = '#36d1ff'; ctx.fillRect(lz.x-2, lz.y-12, 4, 14);
+        ctx.fillStyle = '#bff0ff'; ctx.fillRect(lz.x-1, lz.y-12, 2, 14);
+      }
+
+      // 아이템
       for (const it of items) {
         ctx.fillStyle = OUTLINE; ctx.fillRect(it.x-it.w/2-2, it.y-2, it.w+4, it.h+4);
         ctx.fillStyle = it.color; ctx.fillRect(it.x-it.w/2, it.y, it.w, it.h);
-        ctx.fillStyle = '#06060d'; ctx.font = 'bold 13px sans-serif';
-        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillStyle = '#06060d'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.fillText(ITEM_DEFS[it.type].label, it.x, it.y+it.h/2+1);
       }
       ctx.textBaseline='alphabetic';
-      const pc = slowTimer>0 ? '#9fd0ff' : '#4af0c8';
+
+      // 패들 (효과별 색/장식 중첩)
+      let pCol = '#4af0c8';
+      if (fireTimer>0) pCol = '#ff7a3c';
+      else if (stickyTimer>0) pCol = '#7be04a';
+      else if (slowTimer>0) pCol = '#9fd0ff';
       ctx.fillStyle = OUTLINE; ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
-      ctx.fillStyle = pc; ctx.fillRect(paddle.x+2, paddle.y+2, paddle.w-4, paddle.h-4);
-      ctx.fillStyle = '#bafff0'; ctx.fillRect(paddle.x+2, paddle.y+2, paddle.w-4, 3);
+      ctx.fillStyle = pCol; ctx.fillRect(paddle.x+2, paddle.y+2, paddle.w-4, paddle.h-4);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(paddle.x+2, paddle.y+2, paddle.w-4, 3);
+      if (stickyTimer>0) { ctx.fillStyle='#bfff8a'; for(let gx=paddle.x+5; gx<paddle.x+paddle.w-3; gx+=8) ctx.fillRect(gx, paddle.y+1, 3, 3); }
+      if (laserTimer>0) { ctx.fillStyle='#36d1ff'; ctx.fillRect(paddle.x+4, paddle.y-5, 5, 6); ctx.fillRect(paddle.x+paddle.w-9, paddle.y-5, 5, 6); }
+
+      // 공 (불공이면 화염색)
       for (const b of balls) {
-        ctx.fillStyle = OUTLINE; ctx.beginPath(); ctx.arc(b.x,b.y,b.r+2,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#ffd60a'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#fff6b0'; ctx.beginPath(); ctx.arc(b.x-b.r*0.3,b.y-b.r*0.3,b.r*0.35,0,Math.PI*2); ctx.fill();
+        if (fireTimer>0) {
+          ctx.fillStyle = '#7a1500'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r+3,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#ff5a1f'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r+1,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r-2,0,Math.PI*2); ctx.fill();
+        } else {
+          ctx.fillStyle = OUTLINE; ctx.beginPath(); ctx.arc(b.x,b.y,b.r+2,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#ffd60a'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#fff6b0'; ctx.beginPath(); ctx.arc(b.x-b.r*0.3,b.y-b.r*0.3,b.r*0.35,0,Math.PI*2); ctx.fill();
+        }
       }
+
+      // 콤보 표시
+      if (combo > 1) {
+        ctx.fillStyle = '#ffd60a'; ctx.textAlign='center';
+        const sz = 16 + Math.min(14, combo);
+        ctx.font = 'bold ' + sz + 'px sans-serif';
+        ctx.fillText('COMBO x' + comboMult(), W/2, 40);
+      }
+
       if (!launched) {
         ctx.fillStyle = '#9fb3c8'; ctx.font = '14px sans-serif'; ctx.textAlign='center';
         ctx.fillText('탭 / 스페이스로 발사', W/2, paddle.y - 28);
       }
+
       for (const p of particles) {
         p.x+=p.vx; p.y+=p.vy; p.vy+=0.15; p.life-=0.04;
         ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,4,4);
@@ -389,12 +496,13 @@
 
   function loop(){ update(); draw(); requestAnimationFrame(loop); }
 
+  // ===== 입력 =====
   const keys = { left:false, right:false };
   window.addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
     if (k==='arrowleft'||k==='a') keys.left=true;
     else if (k==='arrowright'||k==='d') keys.right=true;
-    else if (k===' ') launch();
+    else if (k===' ') action();
     if (['arrowleft','arrowright',' '].includes(k)) e.preventDefault();
   });
   window.addEventListener('keyup', e => {
@@ -404,28 +512,101 @@
   });
   function pX(clientX){ const r=canvas.getBoundingClientRect(); return (clientX-r.left)*(W/r.width); }
   canvas.addEventListener('mousemove', e => { if(started&&alive){ paddle.x=Math.max(0,Math.min(W-paddle.w, pX(e.clientX)-paddle.w/2)); } });
-  canvas.addEventListener('mousedown', launch);
+  canvas.addEventListener('mousedown', action);
   canvas.addEventListener('touchstart', e => {
     if (e.touches.length && started && alive) paddle.x=Math.max(0,Math.min(W-paddle.w, pX(e.touches[0].clientX)-paddle.w/2));
-    launch();
+    action();
   }, {passive:true});
   canvas.addEventListener('touchmove', e => {
     if (started && alive && e.touches.length) paddle.x=Math.max(0,Math.min(W-paddle.w, pX(e.touches[0].clientX)-paddle.w/2));
   }, {passive:true});
 
+  // ===== 랭킹 =====
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  async function fetchScores() {
+    try {
+      const r = await fetch(API_URL, { cache:'no-store' });
+      if (!r.ok) throw 0;
+      const list = await r.json();
+      if (Array.isArray(list)) { localStorage.setItem('breakout_lb', JSON.stringify(list)); return list; }
+      throw 0;
+    } catch(e) {
+      try { return JSON.parse(localStorage.getItem('breakout_lb') || '[]'); } catch(_) { return []; }
+    }
+  }
+
+  async function submitScore(name) {
+    let result = null;
+    try {
+      const r = await fetch(API_URL, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ name, score, stage }) });
+      if (r.ok) result = await r.json();
+    } catch(e) {}
+    let list = [];
+    if (result && Array.isArray(result.list)) { list = result.list; }
+    else {
+      try { list = JSON.parse(localStorage.getItem('breakout_lb') || '[]'); } catch(_) {}
+      list.push({ name, score, stage, ts: Date.now() });
+      list.sort((a,b)=>b.score-a.score); list = list.slice(0,50);
+    }
+    localStorage.setItem('breakout_lb', JSON.stringify(list));
+    return { ts: (result && result.ts) || Date.now() };
+  }
+
+  async function showRanking(highlightTs, resultText) {
+    hidePanels(); rankPanel.classList.remove('hidden');
+    rankResult.textContent = resultText || '';
+    rankList.innerHTML = '<div class="empty">불러오는 중...</div>';
+    const list = await fetchScores();
+    if (!list.length) { rankList.innerHTML = '<div class="empty">아직 기록이 없어요.<br>첫 주인공이 되어보세요! 🎮</div>'; return; }
+    rankList.innerHTML = list.slice(0,20).map((e,i) => {
+      const medal = ['🥇','🥈','🥉'][i] || (i+1) + '.';
+      const hl = (highlightTs && e.ts === highlightTs) ? ' hl' : '';
+      const sc = (e.score||0).toLocaleString();
+      return '<div class="row'+hl+'"><span class="rk">'+medal+'</span><span class="nm">'+escapeHtml(e.name)+'</span><span class="sc">'+sc+'</span><span class="sg">St.'+(e.stage||1)+'</span></div>';
+    }).join('');
+  }
+
+  async function endGame(resultText) {
+    const list = await fetchScores();
+    const qualifies = score > 0 && (list.length < 20 || score > (list[list.length-1] ? list[list.length-1].score : 0));
+    setTimeout(() => {
+      if (qualifies) {
+        hidePanels(); namePanel.classList.remove('hidden');
+        nameMsg.textContent = resultText + ' · 점수 ' + score.toLocaleString();
+        nameInput.value = ''; setTimeout(()=>{ try{nameInput.focus();}catch(_){}} , 50);
+      } else {
+        showRanking(null, resultText + ' · 점수 ' + score.toLocaleString());
+      }
+    }, 600);
+  }
+
   playBtn.addEventListener('click', startGame);
+  rankBtn.addEventListener('click', () => showRanking(null, null));
+  rankBack.addEventListener('click', () => { hidePanels(); overlay.classList.remove('hidden'); playBtn.textContent = '▶ 다시하기'; });
+  nameSkip.addEventListener('click', () => showRanking(null, null));
+  nameSubmit.addEventListener('click', async () => {
+    const nm = (nameInput.value || '').trim().slice(0,10) || '익명';
+    nameSubmit.disabled = true; nameSubmit.textContent = '등록 중...';
+    const { ts } = await submitScore(nm);
+    nameSubmit.disabled = false; nameSubmit.textContent = '등록하기';
+    showRanking(ts, '내 기록이 등록됐어요! 🎉');
+  });
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameSubmit.click(); });
+
   requestAnimationFrame(loop);
 
+  // 헤드리스 테스트 훅
   if (typeof window !== 'undefined') {
     window.__bk = {
-      start:startGame, launch, update, apply:applyItem,
+      start:startGame, launch, action, apply:applyItem, update, fireLaser,
       setStage:(n)=>{stage=n; bricks=buildStage(n); resetBallPaddle();},
       STAGES, COLS,
-      get:()=>({score,lives,stage,alive,started,launched,timeScale,balls,items,paddle,
-        bricksAlive: bricks?bricks.filter(b=>b.alive).length:0,
-        breakableLeft: bricks?bricks.filter(b=>b.alive&&b.type==='normal').length:0,
-        solidCount: bricks?bricks.filter(b=>b.type==='solid').length:0 }),
-      setBalls:(a)=>{balls=a;}, keys
+      get:()=>({score,lives,stage,alive,started,launched,combo,comboMult:comboMult(),
+        timeScale,fireTimer,laserTimer,stickyTimer,wideTimer,slowTimer,
+        balls,items,lasers,paddle,
+        bricksAlive: bricks?bricks.filter(b=>b.alive).length:0 }),
+      setBalls:(a)=>{balls=a;}, setLasers:(a)=>{lasers=a;}, keys
     };
   }
 })();
