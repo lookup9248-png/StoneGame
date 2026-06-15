@@ -191,6 +191,12 @@
   }
 
   function draw() {
+    // 게임 상태가 아직 준비되지 않았으면 빈 보드만 그린다 (크래시 방지)
+    if (!snake || !food) {
+      ctx.fillStyle = '#06060d';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
     ctx.save();
     if (shake > 0) {
       ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
@@ -282,6 +288,7 @@
   }
   playBtn.addEventListener('click', start);
 
+  // 루프를 먼저 시작해도 draw() 가드 덕분에 안전하다.
   requestAnimationFrame(loop);
 })();
 </script>
