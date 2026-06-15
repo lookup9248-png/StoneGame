@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Arcade — 미니 게임 모음</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0a0a14;
+    --card: #12121f;
+    --accent: #4af0c8;
+    --accent2: #7a5cff;
+    --text: #e8f6ff;
+    --muted: #8a9bb0;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  /* 헤더 */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px;
+    background: rgba(10,10,20,0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(74,240,200,0.12);
+  }
+  header .logo { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+  header .logo span { color: var(--accent); }
+  header nav { margin-left: auto; display: flex; gap: 18px; font-size: 14px; }
+  header nav a { color: var(--muted); text-decoration: none; transition: color .2s; }
+  header nav a:hover { color: var(--accent); }
+  /* 히어로 */
+  .hero {
+    text-align: center;
+    padding: 60px 20px 40px;
+    background: radial-gradient(ellipse at top, rgba(122,92,255,0.12), transparent 60%);
+  }
+  .hero h1 {
+    font-size: clamp(32px, 7vw, 56px);
+    font-weight: 900; letter-spacing: -1.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p { color: var(--muted); margin-top: 12px; font-size: 16px; }
+  .hero .count {
+    display: inline-flex; gap: 14px; margin-top: 20px;
+    font-size: 13px; color: var(--muted);
+  }
+  .hero .count b { color: var(--accent); }
+  /* 섹션 */
+  section { max-width: 1100px; margin: 0 auto; padding: 30px 20px; }
+  section h2 {
+    font-size: 20px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  section h2::before {
+    content: ''; width: 4px; height: 20px;
+    background: var(--accent); border-radius: 2px;
+  }
+  /* 카드 그리드 */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: transform .2s, box-shadow .2s, border-color .2s;
+    display: flex; flex-direction: column;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(74,240,200,0.4);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.4), 0 0 20px rgba(74,240,200,0.1);
+  }
+  .card .thumb {
+    aspect-ratio: 16/10;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px;
+    background: linear-gradient(135deg, #161628, #0e0e1a);
+    position: relative;
+  }
+  .card .thumb::after {
+    content: '▶ 플레이';
+    position: absolute; bottom: 8px; right: 10px;
+    font-size: 11px; color: var(--accent);
+    background: rgba(0,0,0,0.5); padding: 3px 8px; border-radius: 999px;
+  }
+  .card .body { padding: 14px; }
+  .card .tag {
+    font-size: 11px; color: var(--accent2);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .card .title { font-size: 16px; font-weight: 700; margin: 4px 0 6px; }
+  .card .desc { font-size: 13px; color: var(--muted); }
+  footer {
+    text-align: center; padding: 40px 20px;
+    color: var(--muted); font-size: 13px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">🕹️ My<span>Arcade</span></div>
+    <nav>
+      <a href="#games">게임</a>
+      <a href="#tools">도구</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>My Arcade</h1>
+    <p>바닐라 JS로 만든 미니 게임 모음. 카드를 눌러 바로 플레이하세요.</p>
+    <div class="count">
+      <span>게임 <b id="gameCount">0</b></span>
+      <span>도구 <b id="toolCount">0</b></span>
+    </div>
+  </div>
+
+  <section id="games">
+    <h2>게임</h2>
+    <div class="grid" id="gameGrid"></div>
+  </section>
+
+  <section id="tools">
+    <h2>도구</h2>
+    <div class="grid" id="toolGrid"></div>
+  </section>
+
+  <footer>
+    © 2026 My Arcade. Made with AI.
+  </footer>
+
+<script>
+  // ====================================================
+  //  ↓↓↓ 게임을 추가할 땐 여기 목록에만 한 줄 추가하면 끝 ↓↓↓
+  // ====================================================
+  const GAMES = [
+    {
+      emoji: "🐍",
+      tag: "캐주얼",
+      title: "네온 스네이크",
+      desc: "먹이를 먹어 무지개 몸을 늘리는 중독성 스네이크. 최고기록 저장.",
+      url: "snake.html"
+    },
+    // 새 게임 예시 (만들면 주석 풀고 파일명만 맞춰주세요):
+    // { emoji: "🐤", tag: "캐주얼", title: "플래피 도트", desc: "탭으로 새를 띄워 파이프를 통과.", url: "flappy.html" },
+    // { emoji: "🧱", tag: "퍼즐",   title: "네온 테트리스", desc: "블록을 쌓아 라인을 지우는 클래식.", url: "tetris.html" },
+  ];
+
+  const TOOLS = [
+    // 게임이 아닌 도구/콘텐츠는 여기에:
+    // { emoji: "🎨", tag: "도구", title: "픽셀 에디터", desc: "브라우저 픽셀아트 툴.", url: "pixel.html" },
+  ];
+  // ====================================================
+
+  function renderCards(list, gridId) {
+    const grid = document.getElementById(gridId);
+    grid.innerHTML = list.map(g => `
+      <a class="card" href="${g.url}">
+        <div class="thumb">${g.emoji}</div>
+        <div class="body">
+          <div class="tag">${g.tag}</div>
+          <div class="title">${g.title}</div>
+          <div class="desc">${g.desc}</div>
+        </div>
+      </a>
+    `).join('');
+  }
+
+  renderCards(GAMES, 'gameGrid');
+  renderCards(TOOLS, 'toolGrid');
+  document.getElementById('gameCount').textContent = GAMES.length;
+  document.getElementById('toolCount').textContent = TOOLS.length;
+
+  // 도구 섹션이 비어있으면 숨김
+  if (TOOLS.length === 0) document.getElementById('tools').style.display = 'none';
+</script>
+</body>
+</html>
