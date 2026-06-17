@@ -96,7 +96,7 @@
   // base: cd, dmg, spd, life(사거리=spd*life), per(발당탄소모), ammoMax, 그리고 종류별 특수
   const WEAPONS = {
     pistol: { slot:1, name:'권총', ic:'🔫', kind:'gun', infinite:true, base:{cd:0.30,dmg:9,spd:560,life:1.0,shots:1,spread:0.05,pierce:0} },
-    mg:     { slot:2, name:'기관총', ic:'⛓️', kind:'gun', ammoMax:200, base:{cd:0.08,dmg:7,spd:660,life:1.5,shots:1,spread:0.07,pierce:0,ammoMax:200} },
+    mg:     { slot:2, name:'기관총', ic:'⛓️', kind:'gun', ammoMax:200, base:{cd:0.07,dmg:10,spd:720,life:1.6,shots:1,spread:0.06,pierce:0,ammoMax:200} },
     shotgun:{ slot:3, name:'샷건', ic:'🔻', kind:'gun', ammoMax:40, base:{cd:0.7,dmg:12,spd:520,life:0.46,shots:7,spread:0.28,pierce:0,ammoMax:40} },
     rpg:    { slot:4, name:'RPG', ic:'🚀', kind:'rocket', ammoMax:12, base:{cd:1.1,dmg:55,spd:380,life:1.4,aoe:62,self:22,shots:1,ammoMax:12} },
     mine:   { slot:5, name:'지뢰', ic:'💣', kind:'mine', ammoMax:10, base:{cd:0.5,dmg:60,aoe:70,ammoMax:10} },
@@ -211,24 +211,24 @@
   function swapTo(w){ if(!w||!wUnlocked(w)){ if(w&&!wUnlocked(w)){ toast={txt:WEAPONS[w].name+' 미해금 (스킬트리에서 해금)',life:1.4}; playSnd('hurt',0.3,1.4);} return; } if(w===cur)return; cur=w; player.fireT=Math.max(player.fireT,0.05); toast={txt:WEAPONS[w].ic+' '+WEAPONS[w].name,life:1.0}; playSnd('powerup',0.4); }
 
   // ===== 적/스폰 =====
-  function difficulty(){ return 1+time/55; }
+  function difficulty(){ return 1+time/65; }
   function spawnEnemy(type,ax,ay,boss,mega){
     const t=TYPES[type], d=difficulty(); let x=ax,y=ay;
     if(x===undefined){ const a=Math.random()*Math.PI*2, dist=Math.max(W,H)*0.6+Math.random()*120; x=player.x+Math.cos(a)*dist; y=player.y+Math.sin(a)*dist; }
     const big=mega?2.6:(boss?2:1);
-    const e={ type,x,y, r:t.r*big, size:t.size*big, hp:t.hp*(mega?40+bossN*10:(boss?16+bossN*6:(0.6+d*0.42))), spd:t.spd*(mega?0.5:(boss?0.55:(0.82+Math.min(0.5,time/280)))),
+    const e={ type,x,y, r:t.r*big, size:t.size*big, hp:t.hp*(mega?40+bossN*10:(boss?16+bossN*6:(0.5+d*0.38))), spd:t.spd*(mega?0.5:(boss?0.55:(0.78+Math.min(0.5,time/300)))),
       dmg:t.dmg*(mega?1.8:(boss?1.6:1)), score:t.score*(mega?30:(boss?12:1)), fr:t.fr, dead:t.dead, anim:Math.random()*2, hit:0, boss:!!boss||!!mega, mega:!!mega, knx:0,kny:0, dying:0, atkT:2.2, ptn:0, ptnT:0,
       name:mega?('💀 '+BOSS_NAMES[(bossN-1)%BOSS_NAMES.length]):(boss?BOSS_NAMES[(bossN-1)%BOSS_NAMES.length]:null) };
     e.maxhp=e.hp; enemies.push(e); return e;
   }
   function spawnWave(dt){
-    spawnAcc+=dt; const interval=Math.max(0.22, 1.35-time/80);
+    spawnAcc+=dt; const interval=Math.max(0.24, 1.55-time/75);
     while(spawnAcc>=interval && enemies.length<150){ spawnAcc-=interval; const r=Math.random(); let type='slime';
-      if(time>160&&r>0.84)type='brute'; else if(time>80&&r>0.66)type='mummy'; else if(time>35&&r>0.5)type='beetle'; spawnEnemy(type); }
+      if(time>175&&r>0.86)type='brute'; else if(time>95&&r>0.68)type='mummy'; else if(time>45&&r>0.52)type='beetle'; spawnEnemy(type); }
     bossTimer+=dt;
-    if(bossTimer>=45){ bossTimer=0; bossN++; const b=spawnEnemy('mummy',undefined,undefined,true); banner={txt:'⚠ 중간보스 — '+b.name,life:2.4}; flash=14; shake=10; playSnd('explosion',0.6,0.6); }
+    if(bossTimer>=65){ bossTimer=0; bossN++; const b=spawnEnemy('mummy',undefined,undefined,true); banner={txt:'⚠ 중간보스 — '+b.name,life:2.4}; flash=14; shake=10; playSnd('explosion',0.6,0.6); }
     megaTimer+=dt;
-    if(megaTimer>=110){ megaTimer=0; bossN++; const m=spawnEnemy('brute',undefined,undefined,true,true); banner={txt:'💀 보스 출현! '+m.name,life:3.0}; flash=20; shake=16; playSnd('explosion',0.8,0.45); }
+    if(megaTimer>=150){ megaTimer=0; bossN++; const m=spawnEnemy('brute',undefined,undefined,true,true); banner={txt:'💀 보스 출현! '+m.name,life:3.0}; flash=20; shake=16; playSnd('explosion',0.8,0.45); }
     wave=1+Math.floor(time/30);
   }
   let grid,GSZ=70;
@@ -421,7 +421,7 @@
   function drawHUD(){
     const hearts=Math.ceil(player.maxhp/20); for(let i=0;i<hearts;i++){ const full=player.hp>=(i+1)*20-0.01,half=!full&&player.hp>i*20; ctx.font='18px sans-serif'; ctx.textAlign='left'; ctx.fillStyle=full?'#ff5d6c':(half?'#ff9aa5':'rgba(60,30,20,0.5)'); ctx.fillText('❤',10+i*22,28); }
     ctx.textAlign='right'; ctx.fillStyle='#fff8e0'; ctx.font='bold 18px sans-serif'; ctx.strokeStyle='#3a1e06'; ctx.lineWidth=3; ctx.strokeText(score.toLocaleString(),W-10,28); ctx.fillText(score.toLocaleString(),W-10,28);
-    ctx.font='bold 13px sans-serif'; ctx.fillStyle='#ffd23a'; ctx.fillText('🪙 '+gold,W-10,46);
+    ctx.font='bold 17px sans-serif'; ctx.fillStyle='#ffd23a'; ctx.strokeStyle='#3a1e06'; ctx.lineWidth=3; ctx.textAlign='right'; ctx.strokeText('🪙 '+gold,W-10,50); ctx.fillText('🪙 '+gold,W-10,50);
     ctx.textAlign='left'; ctx.fillStyle='#ffd9a0'; ctx.font='bold 11px sans-serif'; ctx.fillText('WAVE '+wave+' · '+fmtTime(time),10,46);
     // 현재 무기 + 탄약
     const st=statsOf(cur); const am=WEAPONS[cur].infinite?'∞':(ammo[cur]+' / '+st.ammoMax);
