@@ -106,36 +106,36 @@
   const SLOT_ORDER = ['pistol','mg','shotgun','rpg','mine','rail','flame'];
   // 스킬트리 노드: {id,w,name,cost,req,apply(s)|unlock}
   const NODES = [
-    {id:'g_dmg1', w:'all', name:'전체 공격력 +25%', cost:60,  apply:s=>s.dmg*=1.25},
-    {id:'g_dmg2', w:'all', name:'전체 공격력 +25%', cost:150, req:'g_dmg1', apply:s=>s.dmg*=1.25},
-    {id:'g_dmg3', w:'all', name:'전체 공격력 +30%', cost:320, req:'g_dmg2', apply:s=>s.dmg*=1.3},
-    {id:'g_spd1', w:'all', name:'전체 공격속도 +20%', cost:60,  apply:s=>s.cd*=0.83},
-    {id:'g_spd2', w:'all', name:'전체 공격속도 +20%', cost:150, req:'g_spd1', apply:s=>s.cd*=0.83},
-    {id:'g_spd3', w:'all', name:'전체 공격속도 +25%', cost:320, req:'g_spd2', apply:s=>s.cd*=0.80},
-    {id:'p_rate', w:'pistol', name:'연사 +40%', cost:20, apply:s=>s.cd*=0.62},
-    {id:'p_dmg',  w:'pistol', name:'데미지 2배', cost:60, apply:s=>s.dmg*=2},
-    {id:'p_pierce',w:'pistol',name:'관통탄', cost:120, req:'p_dmg', apply:s=>s.pierce+=1},
-    {id:'mg_unlock', w:'mg', name:'해금', cost:35, unlock:true},
-    {id:'mg_ammo', w:'mg', name:'장탄 200→400', cost:60, req:'mg_unlock', apply:s=>s.ammoMax=400, refill:true},
-    {id:'mg_dmg',  w:'mg', name:'데미지 +60%', cost:150, req:'mg_unlock', apply:s=>s.dmg*=1.6},
-    {id:'mg_rate', w:'mg', name:'연사 +40%', cost:250, req:'mg_ammo', apply:s=>s.cd*=0.62},
-    {id:'sg_unlock', w:'shotgun', name:'해금', cost:70, unlock:true},
-    {id:'sg_ammo', w:'shotgun', name:'장탄 2배', cost:130, req:'sg_unlock', apply:s=>s.ammoMax*=2, refill:true},
-    {id:'sg_dmg',  w:'shotgun', name:'데미지 2배', cost:320, req:'sg_ammo', apply:s=>s.dmg*=2},
-    {id:'sg_range',w:'shotgun', name:'사거리 2배', cost:650, req:'sg_dmg', apply:s=>{s.life*=2;s.spread*=0.7;}},
-    {id:'rpg_unlock', w:'rpg', name:'해금', cost:100, unlock:true},
-    {id:'rpg_ammo', w:'rpg', name:'장탄 12→24', cost:190, req:'rpg_unlock', apply:s=>s.ammoMax=24, refill:true},
-    {id:'rpg_aoe',  w:'rpg', name:'폭발범위 +60%', cost:380, req:'rpg_unlock', apply:s=>s.aoe*=1.6},
-    {id:'rpg_safe', w:'rpg', name:'안전장치(자해X)', cost:520, req:'rpg_aoe', apply:s=>s.self=0},
-    {id:'mine_unlock', w:'mine', name:'해금', cost:80, unlock:true},
-    {id:'mine_ammo', w:'mine', name:'장탄 2배', cost:160, req:'mine_unlock', apply:s=>s.ammoMax*=2, refill:true},
-    {id:'mine_dmg',  w:'mine', name:'데미지 2배', cost:320, req:'mine_unlock', apply:s=>{s.dmg*=2;s.aoe*=1.3;}},
-    {id:'rg_unlock', w:'rail', name:'해금', cost:260, unlock:true},
-    {id:'rg_dmg',  w:'rail', name:'데미지 +70%', cost:450, req:'rg_unlock', apply:s=>s.dmg*=1.7},
-    {id:'rg_rate', w:'rail', name:'쿨다운 -40%', cost:580, req:'rg_dmg', apply:s=>s.cd*=0.6},
-    {id:'fl_unlock', w:'flame', name:'해금', cost:200, unlock:true},
-    {id:'fl_dmg',  w:'flame', name:'데미지 +80%', cost:380, req:'fl_unlock', apply:s=>s.dmg*=1.8},
-    {id:'fl_range',w:'flame', name:'사거리 +50%', cost:580, req:'fl_dmg', apply:s=>s.life*=1.5},
+    {id:'g_dmg1', w:'all', name:'전체 공격력 +25%', cost:45,  apply:s=>s.dmg*=1.25},
+    {id:'g_dmg2', w:'all', name:'전체 공격력 +25%', cost:110, req:'g_dmg1', apply:s=>s.dmg*=1.25},
+    {id:'g_dmg3', w:'all', name:'전체 공격력 +30%', cost:230, req:'g_dmg2', apply:s=>s.dmg*=1.3},
+    {id:'g_spd1', w:'all', name:'전체 공격속도 +20%', cost:45,  apply:s=>s.cd*=0.83},
+    {id:'g_spd2', w:'all', name:'전체 공격속도 +20%', cost:110, req:'g_spd1', apply:s=>s.cd*=0.83},
+    {id:'g_spd3', w:'all', name:'전체 공격속도 +25%', cost:230, req:'g_spd2', apply:s=>s.cd*=0.80},
+    {id:'p_rate', w:'pistol', name:'연사 +40%', cost:15, apply:s=>s.cd*=0.62},
+    {id:'p_dmg',  w:'pistol', name:'데미지 2배', cost:45, apply:s=>s.dmg*=2},
+    {id:'p_pierce',w:'pistol',name:'관통탄', cost:90, req:'p_dmg', apply:s=>s.pierce+=1},
+    {id:'mg_unlock', w:'mg', name:'해금', cost:25, unlock:true},
+    {id:'mg_ammo', w:'mg', name:'장탄 200→400', cost:45, req:'mg_unlock', apply:s=>s.ammoMax=400, refill:true},
+    {id:'mg_dmg',  w:'mg', name:'데미지 +60%', cost:110, req:'mg_unlock', apply:s=>s.dmg*=1.6},
+    {id:'mg_rate', w:'mg', name:'연사 +40%', cost:180, req:'mg_ammo', apply:s=>s.cd*=0.62},
+    {id:'sg_unlock', w:'shotgun', name:'해금', cost:50, unlock:true},
+    {id:'sg_ammo', w:'shotgun', name:'장탄 2배', cost:95, req:'sg_unlock', apply:s=>s.ammoMax*=2, refill:true},
+    {id:'sg_dmg',  w:'shotgun', name:'데미지 2배', cost:230, req:'sg_ammo', apply:s=>s.dmg*=2},
+    {id:'sg_range',w:'shotgun', name:'사거리 2배', cost:480, req:'sg_dmg', apply:s=>{s.life*=2;s.spread*=0.7;}},
+    {id:'rpg_unlock', w:'rpg', name:'해금', cost:75, unlock:true},
+    {id:'rpg_ammo', w:'rpg', name:'장탄 12→24', cost:140, req:'rpg_unlock', apply:s=>s.ammoMax=24, refill:true},
+    {id:'rpg_aoe',  w:'rpg', name:'폭발범위 +60%', cost:280, req:'rpg_unlock', apply:s=>s.aoe*=1.6},
+    {id:'rpg_safe', w:'rpg', name:'안전장치(자해X)', cost:380, req:'rpg_aoe', apply:s=>s.self=0},
+    {id:'mine_unlock', w:'mine', name:'해금', cost:60, unlock:true},
+    {id:'mine_ammo', w:'mine', name:'장탄 2배', cost:120, req:'mine_unlock', apply:s=>s.ammoMax*=2, refill:true},
+    {id:'mine_dmg',  w:'mine', name:'데미지 2배', cost:230, req:'mine_unlock', apply:s=>{s.dmg*=2;s.aoe*=1.3;}},
+    {id:'rg_unlock', w:'rail', name:'해금', cost:190, unlock:true},
+    {id:'rg_dmg',  w:'rail', name:'데미지 +70%', cost:330, req:'rg_unlock', apply:s=>s.dmg*=1.7},
+    {id:'rg_rate', w:'rail', name:'쿨다운 -40%', cost:430, req:'rg_dmg', apply:s=>s.cd*=0.6},
+    {id:'fl_unlock', w:'flame', name:'해금', cost:150, unlock:true},
+    {id:'fl_dmg',  w:'flame', name:'데미지 +80%', cost:280, req:'fl_unlock', apply:s=>s.dmg*=1.8},
+    {id:'fl_range',w:'flame', name:'사거리 +50%', cost:430, req:'fl_dmg', apply:s=>s.life*=1.5},
   ];
   function nodeById(id){ return NODES.find(n=>n.id===id); }
 
@@ -190,20 +190,20 @@
   function swapTo(w){ if(!w||!wUnlocked(w)){ if(w&&!wUnlocked(w)){ toast={txt:WEAPONS[w].name+' 미해금 (스킬트리에서 해금)',life:1.4}; playSnd('hurt',0.3,1.4);} return; } if(w===cur)return; cur=w; player.fireT=Math.max(player.fireT,0.05); toast={txt:WEAPONS[w].ic+' '+WEAPONS[w].name,life:1.0}; playSnd('powerup',0.4); }
 
   // ===== 적/스폰 =====
-  function difficulty(){ return 1+time/40; }
+  function difficulty(){ return 1+time/55; }
   function spawnEnemy(type,ax,ay,boss,mega){
     const t=TYPES[type], d=difficulty(); let x=ax,y=ay;
     if(x===undefined){ const a=Math.random()*Math.PI*2, dist=Math.max(W,H)*0.6+Math.random()*120; x=player.x+Math.cos(a)*dist; y=player.y+Math.sin(a)*dist; }
     const big=mega?2.6:(boss?2:1);
-    const e={ type,x,y, r:t.r*big, size:t.size*big, hp:t.hp*(mega?40+bossN*10:(boss?16+bossN*6:(0.8+d*0.45))), spd:t.spd*(mega?0.5:(boss?0.55:(0.92+Math.min(0.5,time/300)))),
+    const e={ type,x,y, r:t.r*big, size:t.size*big, hp:t.hp*(mega?40+bossN*10:(boss?16+bossN*6:(0.6+d*0.42))), spd:t.spd*(mega?0.5:(boss?0.55:(0.82+Math.min(0.5,time/280)))),
       dmg:t.dmg*(mega?1.8:(boss?1.6:1)), score:t.score*(mega?30:(boss?12:1)), fr:t.fr, dead:t.dead, anim:Math.random()*2, hit:0, boss:!!boss||!!mega, mega:!!mega, knx:0,kny:0, dying:0, atkT:2.2, ptn:0, ptnT:0,
       name:mega?('💀 '+BOSS_NAMES[(bossN-1)%BOSS_NAMES.length]):(boss?BOSS_NAMES[(bossN-1)%BOSS_NAMES.length]:null) };
     e.maxhp=e.hp; enemies.push(e); return e;
   }
   function spawnWave(dt){
-    spawnAcc+=dt; const interval=Math.max(0.22, 1.0-time/90);
+    spawnAcc+=dt; const interval=Math.max(0.22, 1.35-time/80);
     while(spawnAcc>=interval && enemies.length<150){ spawnAcc-=interval; const r=Math.random(); let type='slime';
-      if(time>150&&r>0.82)type='brute'; else if(time>70&&r>0.62)type='mummy'; else if(time>25&&r>0.45)type='beetle'; spawnEnemy(type); }
+      if(time>160&&r>0.84)type='brute'; else if(time>80&&r>0.66)type='mummy'; else if(time>35&&r>0.5)type='beetle'; spawnEnemy(type); }
     bossTimer+=dt;
     if(bossTimer>=45){ bossTimer=0; bossN++; const b=spawnEnemy('mummy',undefined,undefined,true); banner={txt:'⚠ 중간보스 — '+b.name,life:2.4}; flash=14; shake=10; playSnd('explosion',0.6,0.6); }
     megaTimer+=dt;
@@ -224,8 +224,8 @@
     e.dying=0.45; e.vx=e.knx; e.vy=e.kny; kills++; score+=e.score*10;
     addParts(e.x,e.y,'#ffcaa0', e.mega?34:(e.boss?22:8), e.mega?300:170);
     playSnd('explosion', e.boss?0.7:0.32, e.mega?0.5:(e.boss?0.6:0.9+Math.random()*0.3));
-    if(e.mega){ shake=18; banner={txt:'🏆 보스 격파! +'+(e.score*10)+' / 금화 폭탄',life:2.4}; for(let i=0;i<26;i++)pickups.push(mkPickup(e.x+(Math.random()-0.5)*90,e.y+(Math.random()-0.5)*90,'coin')); pickups.push(mkPickup(e.x,e.y,'heart')); for(let i=0;i<3;i++)pickups.push(mkPickup(e.x+(i-1)*26,e.y,'ammo')); }
-    else if(e.boss){ shake=14; banner={txt:'🏆 '+e.name+' 격파! +'+(e.score*10),life:2.0}; for(let i=0;i<14;i++)pickups.push(mkPickup(e.x+(Math.random()-0.5)*70,e.y+(Math.random()-0.5)*70,'coin')); pickups.push(mkPickup(e.x,e.y,'ammo')); pickups.push(mkPickup(e.x+22,e.y,'heart')); }
+    if(e.mega){ shake=18; banner={txt:'🏆 보스 격파! +'+(e.score*10)+' / 금화 폭탄',life:2.4}; for(let i=0;i<50;i++)pickups.push(mkPickup(e.x+(Math.random()-0.5)*110,e.y+(Math.random()-0.5)*110,'coin')); pickups.push(mkPickup(e.x,e.y,'fullheart')); for(let i=0;i<3;i++)pickups.push(mkPickup(e.x+(i-1)*26,e.y,'ammo')); }
+    else if(e.boss){ shake=14; banner={txt:'🏆 '+e.name+' 격파! +'+(e.score*10),life:2.0}; for(let i=0;i<30;i++)pickups.push(mkPickup(e.x+(Math.random()-0.5)*85,e.y+(Math.random()-0.5)*85,'coin')); pickups.push(mkPickup(e.x,e.y,'ammo')); pickups.push(mkPickup(e.x+22,e.y,'fullheart')); }
     else { pickups.push(mkPickup(e.x,e.y,'coin')); const r=Math.random(); if(r>0.88)pickups.push(mkPickup(e.x,e.y,'ammo')); else if(r>0.965)pickups.push(mkPickup(e.x,e.y,'heart')); }
   }
   function mkPickup(x,y,kind){ return {x,y,kind,r:11,t:0}; }
@@ -351,6 +351,7 @@
       if(d<player.r+10){ p.dead=true;
         if(p.kind==='coin'){ gold++; score+=25; playSnd('coin',0.4,1+Math.random()*0.3); }
         else if(p.kind==='heart'){ player.hp=Math.min(player.maxhp,player.hp+20); playSnd('coin',0.5,0.7); }
+        else if(p.kind==='fullheart'){ player.hp=player.maxhp; toast={txt:'💗 완전 회복!',life:1.4}; flash=8; playSnd('powerup',0.7); }
         else if(p.kind==='ammo'){ for(const w of SLOT_ORDER){ if(!WEAPONS[w].infinite&&wUnlocked(w)){ ammo[w]=Math.min(statsOf(w).ammoMax, ammo[w]+Math.ceil(statsOf(w).ammoMax*0.35)); } } toast={txt:'📦 탄약 보급!',life:1.0}; playSnd('powerup',0.5); }
       } }
     pickups=pickups.filter(p=>!p.dead);
@@ -370,7 +371,7 @@
     for(let x=x0;x<camX+W+TILE;x+=TILE)for(let y=y0;y<camY+H+TILE;y+=TILE){ const cx=x/TILE|0,cy=y/TILE|0,h=hashCell(cx,cy); const f=h%10===0?'floor2':(h%4===0?'floor1':'floor0'); const im=IMG[f]; if(im)ctx.drawImage(im,x,y,TILE,TILE); const dec=h%37; if(dec===1){const i2=IMG['cactus'];if(i2)ctx.drawImage(i2,x+8,y+4,TILE*0.7,TILE*0.7);} else if(dec===5){const i2=IMG['rock'];if(i2)ctx.drawImage(i2,x+10,y+12,TILE*0.6,TILE*0.6);} }
     // 지뢰
     for(const m of mines){ const blink=(Math.floor(m.t*6)&1)||m.arm>0; ctx.fillStyle='#3a1206'; ctx.beginPath(); ctx.arc(m.x,m.y,9,0,7); ctx.fill(); ctx.fillStyle=m.arm>0?'#888':(blink?'#ff3a2a':'#ffd23a'); ctx.beginPath(); ctx.arc(m.x,m.y,4,0,7); ctx.fill(); }
-    for(const p of pickups){ const bob=Math.sin(p.t*6)*2; if(p.kind==='coin'){ ctx.fillStyle='#ffd23a'; ctx.strokeStyle='#7a4a00'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(p.x,p.y+bob,7,0,7); ctx.fill(); ctx.stroke(); } else if(p.kind==='heart'){ ctx.fillStyle='#ff5d6c'; ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.fillText('❤',p.x,p.y+6+bob); } else { ctx.fillStyle='#6a8cff'; ctx.strokeStyle='#152a5a'; ctx.lineWidth=2; ctx.fillRect(p.x-9,p.y-7+bob,18,14); ctx.strokeRect(p.x-9,p.y-7+bob,18,14); ctx.fillStyle='#dfe8ff'; ctx.font='bold 10px sans-serif'; ctx.textAlign='center'; ctx.fillText('탄',p.x,p.y+4+bob); } }
+    for(const p of pickups){ const bob=Math.sin(p.t*6)*2; if(p.kind==='coin'){ ctx.fillStyle='#ffd23a'; ctx.strokeStyle='#7a4a00'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(p.x,p.y+bob,7,0,7); ctx.fill(); ctx.stroke(); } else if(p.kind==='heart'){ ctx.fillStyle='#ff5d6c'; ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.fillText('❤',p.x,p.y+6+bob); } else if(p.kind==='fullheart'){ ctx.save(); ctx.shadowColor='#ff7ab0'; ctx.shadowBlur=12; ctx.fillStyle='#ff7ab0'; ctx.font='26px sans-serif'; ctx.textAlign='center'; ctx.fillText('💗',p.x,p.y+9+bob); ctx.restore(); } else { ctx.fillStyle='#6a8cff'; ctx.strokeStyle='#152a5a'; ctx.lineWidth=2; ctx.fillRect(p.x-9,p.y-7+bob,18,14); ctx.strokeRect(p.x-9,p.y-7+bob,18,14); ctx.fillStyle='#dfe8ff'; ctx.font='bold 10px sans-serif'; ctx.textAlign='center'; ctx.fillText('탄',p.x,p.y+4+bob); } }
     // 레일 빔
     for(const bm of beams){ const a=Math.max(0,bm.life/0.18); ctx.strokeStyle='rgba(120,220,255,'+a+')'; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(bm.x1,bm.y1); ctx.lineTo(bm.x2,bm.y2); ctx.stroke(); ctx.strokeStyle='rgba(255,255,255,'+a+')'; ctx.lineWidth=2; ctx.stroke(); }
     // 총알
