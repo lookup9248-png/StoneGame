@@ -97,7 +97,7 @@
   const WEAPONS = {
     pistol: { slot:1, name:'권총', ic:'🔫', kind:'gun', infinite:true, base:{cd:0.30,dmg:9,spd:560,life:1.0,shots:1,spread:0.05,pierce:0} },
     mg:     { slot:2, name:'기관총', ic:'⛓️', kind:'gun', ammoMax:200, base:{cd:0.07,dmg:10,spd:720,life:1.6,shots:1,spread:0.06,pierce:0,ammoMax:200} },
-    shotgun:{ slot:3, name:'샷건', ic:'🔻', kind:'gun', ammoMax:40, base:{cd:0.7,dmg:12,spd:520,life:0.46,shots:7,spread:0.28,pierce:0,ammoMax:40} },
+    shotgun:{ slot:3, name:'샷건', ic:'🔻', kind:'gun', ammoMax:40, base:{cd:0.7,dmg:16,spd:520,life:0.46,shots:7,spread:0.20,pierce:0,ammoMax:40} },
     rpg:    { slot:4, name:'RPG', ic:'🚀', kind:'rocket', ammoMax:12, base:{cd:1.1,dmg:55,spd:380,life:1.4,aoe:62,self:22,shots:1,ammoMax:12} },
     mine:   { slot:5, name:'지뢰', ic:'💣', kind:'mine', ammoMax:10, base:{cd:0.5,dmg:60,aoe:70,ammoMax:10} },
     rail:   { slot:6, name:'레일건', ic:'⚡', kind:'rail', ammoMax:20, base:{cd:1.35,dmg:85,range:760,width:13,ammoMax:20} },
@@ -366,7 +366,7 @@
     for(const eb of ebs){ eb.x+=eb.vx*dt; eb.y+=eb.vy*dt; eb.life-=dt; if(Math.hypot(eb.x-player.x,eb.y-player.y)<player.r+eb.r){ hitPlayer(12); eb.life=0; if(state!=='playing')return; } }
     ebs=ebs.filter(e=>e.life>0);
 
-    const mag=72;
+    const mag=130;
     for(const p of pickups){ p.t+=dt; const dx=player.x-p.x,dy=player.y-p.y,d=Math.hypot(dx,dy)||1;
       if(d<mag){ p.x+=(dx/d)*240*dt; p.y+=(dy/d)*240*dt; }
       if(d<player.r+10){ p.dead=true;
@@ -420,9 +420,11 @@
   }
   function drawHUD(){
     const hearts=Math.ceil(player.maxhp/20); for(let i=0;i<hearts;i++){ const full=player.hp>=(i+1)*20-0.01,half=!full&&player.hp>i*20; ctx.font='18px sans-serif'; ctx.textAlign='left'; ctx.fillStyle=full?'#ff5d6c':(half?'#ff9aa5':'rgba(60,30,20,0.5)'); ctx.fillText('❤',10+i*22,28); }
-    ctx.textAlign='right'; ctx.fillStyle='#fff8e0'; ctx.font='bold 18px sans-serif'; ctx.strokeStyle='#3a1e06'; ctx.lineWidth=3; ctx.strokeText(score.toLocaleString(),W-10,28); ctx.fillText(score.toLocaleString(),W-10,28);
-    ctx.font='bold 17px sans-serif'; ctx.fillStyle='#ffd23a'; ctx.strokeStyle='#3a1e06'; ctx.lineWidth=3; ctx.textAlign='right'; ctx.strokeText('🪙 '+gold,W-10,50); ctx.fillText('🪙 '+gold,W-10,50);
-    ctx.textAlign='left'; ctx.fillStyle='#ffd9a0'; ctx.font='bold 11px sans-serif'; ctx.fillText('WAVE '+wave+' · '+fmtTime(time),10,46);
+    const HUDX=W-76; ctx.textAlign='right'; ctx.strokeStyle='#3a1e06'; ctx.lineWidth=3;
+    ctx.fillStyle='#fff8e0'; ctx.font='bold 18px sans-serif'; ctx.strokeText(score.toLocaleString(),HUDX,26); ctx.fillText(score.toLocaleString(),HUDX,26);
+    ctx.fillStyle='#ffd23a'; ctx.font='bold 16px sans-serif'; ctx.strokeText('🪙 '+gold,HUDX,48); ctx.fillText('🪙 '+gold,HUDX,48);
+    ctx.fillStyle='#bfe6ff'; ctx.font='bold 14px sans-serif'; ctx.strokeText('⏱ '+fmtTime(time),HUDX,69); ctx.fillText('⏱ '+fmtTime(time),HUDX,69);
+    ctx.textAlign='left'; ctx.fillStyle='#ffd9a0'; ctx.font='bold 11px sans-serif'; ctx.fillText('WAVE '+wave,10,46);
     // 현재 무기 + 탄약
     const st=statsOf(cur); const am=WEAPONS[cur].infinite?'∞':(ammo[cur]+' / '+st.ammoMax);
     ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 15px sans-serif'; ctx.strokeStyle='#3a1e06'; ctx.lineWidth=4; const wt=WEAPONS[cur].ic+' '+WEAPONS[cur].name+'  '+am; ctx.strokeText(wt,W/2,H-44); ctx.fillText(wt,W/2,H-44);
