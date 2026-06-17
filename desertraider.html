@@ -98,10 +98,10 @@
     pistol: { slot:1, name:'권총', ic:'🔫', kind:'gun', infinite:true, base:{cd:0.30,dmg:9,spd:560,life:1.0,shots:1,spread:0.05,pierce:0} },
     mg:     { slot:2, name:'기관총', ic:'⛓️', kind:'gun', ammoMax:200, base:{cd:0.07,dmg:10,spd:720,life:1.6,shots:1,spread:0.06,pierce:0,ammoMax:200} },
     shotgun:{ slot:3, name:'샷건', ic:'🔻', kind:'gun', ammoMax:40, base:{cd:0.7,dmg:16,spd:520,life:0.46,shots:7,spread:0.20,pierce:0,ammoMax:40} },
-    rpg:    { slot:4, name:'RPG', ic:'🚀', kind:'rocket', ammoMax:12, base:{cd:1.0,dmg:75,spd:420,life:1.4,aoe:82,self:18,shots:1,ammoMax:12} },
+    rpg:    { slot:4, name:'RPG', ic:'🚀', kind:'rocket', ammoMax:12, base:{cd:1.0,dmg:75,spd:420,life:1.4,aoe:82,self:0,shots:1,ammoMax:12} },
     mine:   { slot:5, name:'지뢰', ic:'💣', kind:'mine', ammoMax:10, base:{cd:0.45,dmg:90,aoe:92,ammoMax:10} },
     rail:   { slot:6, name:'레일건', ic:'⚡', kind:'rail', ammoMax:20, base:{cd:1.35,dmg:85,range:760,width:13,ammoMax:20} },
-    flame:  { slot:7, name:'화염방사기', ic:'🔥', kind:'flame', ammoMax:300, base:{cd:0.045,dmg:4,spd:300,life:0.24,shots:1,spread:0.32,ammoMax:300} },
+    flame:  { slot:7, name:'화염방사기', ic:'🔥', kind:'flame', ammoMax:300, base:{cd:0.045,dmg:16,spd:360,life:0.40,shots:1,spread:0.32,pierce:99,ammoMax:300} },
   };
   const SLOT_ORDER = ['pistol','mg','shotgun','rpg','mine','rail','flame'];
   // 스킬트리 노드: {id,w,name,cost,req,apply(s)|unlock}
@@ -130,7 +130,7 @@
     {id:'rpg_ammo', w:'rpg', name:'장탄 12→24', cost:110, req:'rpg_unlock', apply:s=>s.ammoMax=24, refill:true},
     {id:'rpg_spd', w:'rpg', name:'탄속 +50%', cost:150, req:'rpg_unlock', apply:s=>s.spd*=1.5},
     {id:'rpg_aoe',  w:'rpg', name:'폭발범위 +60%', cost:220, req:'rpg_unlock', apply:s=>s.aoe*=1.6},
-    {id:'rpg_safe', w:'rpg', name:'안전장치(자해X)', cost:300, req:'rpg_aoe', apply:s=>s.self=0},
+    {id:'rpg_multi', w:'rpg', name:'탄환 추가 발사', cost:300, req:'rpg_aoe', apply:s=>s.shots=(s.shots||1)+1},
     // ── 지뢰 ──
     {id:'mine_unlock', w:'mine', name:'해금', cost:45, unlock:true},
     {id:'mine_ammo', w:'mine', name:'장탄 2배', cost:90, req:'mine_unlock', apply:s=>s.ammoMax*=2, refill:true},
@@ -309,7 +309,7 @@
     if(def.kind==='gun'){ const n=st.shots; for(let i=0;i<n;i++){ const off=(i-(n-1)/2)*st.spread+(Math.random()-0.5)*0.04; const a=aim+off;
         bullets.push({x:mx,y:my,vx:Math.cos(a)*st.spd,vy:Math.sin(a)*st.spd,dmg:st.dmg,pierce:st.pierce,life:st.life,hits:[],type:'b',col:w==='shotgun'?'#ffd0a0':'#ffe45a'}); }
       useAmmo(w,1); playSnd('shoot',w==='shotgun'?0.4:0.26,w==='shotgun'?0.7:0.95+Math.random()*0.2); }
-    else if(def.kind==='rocket'){ bullets.push({x:mx,y:my,vx:Math.cos(aim)*st.spd,vy:Math.sin(aim)*st.spd,dmg:st.dmg,pierce:0,life:st.life,hits:[],type:'rocket',aoe:st.aoe,self:st.self,col:'#ffae5a'}); useAmmo(w,1); playSnd('shoot',0.4,0.6); }
+    else if(def.kind==='rocket'){ const n=st.shots||1; for(let i=0;i<n;i++){ const off=(i-(n-1)/2)*0.12; const a=aim+off; bullets.push({x:mx,y:my,vx:Math.cos(a)*st.spd,vy:Math.sin(a)*st.spd,dmg:st.dmg,pierce:0,life:st.life,hits:[],type:'rocket',aoe:st.aoe,self:st.self,col:'#ffae5a'}); } useAmmo(w,1); playSnd('shoot',0.4,0.6); }
     else if(def.kind==='mine'){ mines.push({x:player.x,y:player.y,arm:0.4,dmg:st.dmg,r:st.aoe,t:0}); useAmmo(w,1); playSnd('powerup',0.3,0.7); }
     else if(def.kind==='rail'){ railFire(aim,st); useAmmo(w,1); playSnd('shoot',0.5,0.4); shake=Math.max(shake,5); }
     else if(def.kind==='flame'){ const a=aim+(Math.random()-0.5)*st.spread; bullets.push({x:mx,y:my,vx:Math.cos(a)*st.spd,vy:Math.sin(a)*st.spd,dmg:st.dmg,pierce:99,life:st.life,hits:[],type:'flame',col:'#ff7a2a'}); useAmmo(w,1); if(Math.random()<0.3)playSnd('shoot',0.12,1.6); }
@@ -443,7 +443,7 @@
     // 총알
     ctx.lineCap='round';
     for(const b of bullets){ if(b.type==='rocket'){ ctx.fillStyle='#3a1a06'; ctx.beginPath(); ctx.arc(b.x,b.y,5,0,7); ctx.fill(); ctx.fillStyle='#ff8a2a'; ctx.beginPath(); ctx.arc(b.x-b.vx*0.01,b.y-b.vy*0.01,4,0,7); ctx.fill(); }
-      else if(b.type==='flame'){ const a=Math.max(0,b.life/0.24); ctx.globalAlpha=a; ctx.fillStyle=Math.random()<0.5?'#ff7a2a':'#ffd23a'; ctx.beginPath(); ctx.arc(b.x,b.y,5+(0.24-b.life)*22,0,7); ctx.fill(); ctx.globalAlpha=1; }
+      else if(b.type==='flame'){ const a=Math.max(0,b.life/0.40); ctx.globalAlpha=a; ctx.fillStyle=Math.random()<0.5?'#ff7a2a':'#ffd23a'; ctx.beginPath(); ctx.arc(b.x,b.y,5+(0.40-b.life)*16,0,7); ctx.fill(); ctx.globalAlpha=1; }
       else { ctx.strokeStyle=b.col; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x-b.vx*0.012,b.y-b.vy*0.012); ctx.stroke(); ctx.fillStyle='#fff8c0'; ctx.beginPath(); ctx.arc(b.x,b.y,2,0,7); ctx.fill(); } }
     // 보스 투사체
     for(const eb of ebs){ ctx.fillStyle='#3a1030'; ctx.beginPath(); ctx.arc(eb.x,eb.y,eb.r+2,0,7); ctx.fill(); ctx.fillStyle='#e24ac0'; ctx.beginPath(); ctx.arc(eb.x,eb.y,eb.r,0,7); ctx.fill(); }
