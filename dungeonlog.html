@@ -48,10 +48,10 @@
     <span class="stat">B<b id="sDepth">1</b></span>
     <div id="hpwrap"><div id="hpbar"></div><div id="hptxt"></div></div>
     <span class="stat">Lv<b id="sLvl">1</b></span>
-    <span class="stat">⚔<b id="sAtk">4</b></span>
-    <span class="stat">🛡<b id="sDef">0</b></span>
-    <span class="stat">🪙<b id="sGold">0</b></span>
-    <span class="stat">🧪<b id="sPot">1</b></span>
+    <span class="stat">ATK <b id="sAtk">4</b></span>
+    <span class="stat">DEF <b id="sDef">0</b></span>
+    <span class="stat">G <b id="sGold">0</b></span>
+    <span class="stat">물약 <b id="sPot">1</b></span>
   </div>
   <canvas id="cv"></canvas>
   <div id="log"></div>
@@ -388,8 +388,8 @@
       else { ctx.fillStyle=isW?'#2a2236':'#171022'; ctx.fillRect(sx,sy,DTS,DTS); }
       if(!S.vis[y][x]){ ctx.fillStyle='rgba(6,4,12,0.58)'; ctx.fillRect(sx,sy,DTS,DTS); }
     }
-    // 계단
-    drawAt(T.stairs, S.stairs.x, S.stairs.y, camX, camY, true);
+    // 계단 (탐험한 칸만)
+    if(S.seen[S.stairs.y][S.stairs.x]) drawAt(T.stairs, S.stairs.x, S.stairs.y, camX, camY, true);
     // 아이템
     for(const it of S.items){ if(!S.seen[it.y][it.x])continue; if(!S.vis[it.y][it.x])continue;
       let idx=T.chestClosed;
