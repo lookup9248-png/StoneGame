@@ -100,7 +100,7 @@
     shotgun:{ slot:3, name:'샷건', ic:'🔻', kind:'gun', ammoMax:40, base:{cd:0.7,dmg:16,spd:520,life:0.46,shots:7,spread:0.20,pierce:0,ammoMax:40} },
     rpg:    { slot:4, name:'RPG', ic:'🚀', kind:'rocket', ammoMax:12, base:{cd:1.0,dmg:75,spd:420,life:1.4,aoe:82,self:0,shots:1,ammoMax:12} },
     mine:   { slot:5, name:'지뢰', ic:'💣', kind:'mine', ammoMax:10, base:{cd:0.45,dmg:90,aoe:92,ammoMax:10} },
-    rail:   { slot:6, name:'레일건', ic:'⚡', kind:'rail', ammoMax:20, base:{cd:1.35,dmg:85,range:760,width:13,ammoMax:20} },
+    rail:   { slot:6, name:'레일건', ic:'⚡', kind:'rail', ammoMax:20, base:{cd:1.35,dmg:130,range:1000,width:26,ammoMax:20} },
     flame:  { slot:7, name:'화염방사기', ic:'🔥', kind:'flame', ammoMax:300, base:{cd:0.045,dmg:16,spd:360,life:0.40,shots:1,spread:0.32,pierce:99,ammoMax:300} },
   };
   const SLOT_ORDER = ['pistol','mg','shotgun','rpg','mine','rail','flame'];
@@ -210,7 +210,7 @@
   };
 
   let state='menu', time, score, gold, kills, wave;
-  let player, enemies, bullets, ebs, mines, beams, pickups, parts, dmgs, bossTimer, megaTimer, bossN, spawnAcc, shake, flash, banner;
+  let player, enemies, bullets, ebs, mines, beams, fires, pickups, parts, dmgs, bossTimer, megaTimer, bossN, spawnAcc, shake, flash, banner;
   let bought, ammo, cur, toast;
   let cam={x:0,y:0}; const keys={};
 
@@ -222,7 +222,7 @@
   function resetGame(){
     state='playing'; time=0; score=0; gold=0; kills=0; wave=1; bossTimer=0; megaTimer=0; bossN=0; spawnAcc=0; shake=0; flash=0; banner=null; toast=null;
     player={ x:0,y:0,r:13,hp:100,maxhp:100,iframe:0,speed:165,anim:0,aim:0, fireT:0, muzzle:0 };
-    enemies=[]; bullets=[]; ebs=[]; mines=[]; beams=[]; pickups=[]; parts=[]; dmgs=[]; cam.x=0; cam.y=0;
+    enemies=[]; bullets=[]; ebs=[]; mines=[]; beams=[]; fires=[]; pickups=[]; parts=[]; dmgs=[]; cam.x=0; cam.y=0;
     bought=new Set(); ammo={}; for(const w of SLOT_ORDER) ammo[w]=WEAPONS[w].infinite?Infinity:0; cur='pistol';
   }
   function start(){ resetGame(); menu.classList.add('hidden'); deadPanel.classList.add('hidden'); pausePanel.classList.add('hidden'); pauseBtn.style.display='block';
@@ -315,7 +315,7 @@
     else if(def.kind==='flame'){ const a=aim+(Math.random()-0.5)*st.spread; bullets.push({x:mx,y:my,vx:Math.cos(a)*st.spd,vy:Math.sin(a)*st.spd,dmg:st.dmg,pierce:99,life:st.life,hits:[],type:'flame',col:'#ff7a2a'}); useAmmo(w,1); if(Math.random()<0.3)playSnd('shoot',0.12,1.6); }
   }
   function railFire(aim,st){ const ux=Math.cos(aim),uy=Math.sin(aim); const ex=player.x+ux*st.range, ey=player.y+uy*st.range; beams.push({x1:player.x,y1:player.y,x2:ex,y2:ey,life:0.18});
-    for(const e of enemies){ if(e.dying)continue; const rx=e.x-player.x, ry=e.y-player.y; const proj=rx*ux+ry*uy; if(proj<0||proj>st.range)continue; const perp=Math.abs(rx*uy-ry*ux); if(perp<st.width+e.r){ hurtEnemy(e,st.dmg,ux*8,uy*8); } } }
+    for(const e of enemies){ if(e.dying)continue; const rx=e.x-player.x, ry=e.y-player.y; const proj=rx*ux+ry*uy; if(proj<0||proj>st.range)continue; const perp=Math.abs(rx*uy-ry*ux); if(perp<st.width+e.r){ hurtEnemy(e,st.dmg*(e.boss?2.2:1),ux*8,uy*8); } } }
 
   function bossAttack(e,dt){
     e.ptnT-=dt; if(e.ptnT>0) return; 
@@ -401,8 +401,12 @@
           if(b.type!=='flame')addParts(b.x,b.y,'#fff2b0',2,90);
         } }
       if(b.type==='rocket'&&b.life<=0&&!hitOne) explode(b.x,b.y,b.aoe,b.dmg,b.self);
+      if(b.type==='flame'&&b.life<=0&&Math.random()<0.4){ fires.push({x:b.x,y:b.y,r:26,life:2.4,dmgT:0,dmg:Math.max(4,statsOf('flame').dmg*0.45)}); }
     }
     bullets=bullets.filter(b=>b.life>0);
+    // 바닥 화염 도트딜
+    for(const f of fires){ f.life-=dt; f.dmgT-=dt; if(f.dmgT<=0){ f.dmgT=0.22; const near=nearby(f.x,f.y,f.r+20); for(const i of near){ const e=enemies[i]; if(e&&!e.dying&&Math.hypot(e.x-f.x,e.y-f.y)<f.r+e.r){ hurtEnemy(e,f.dmg,0,0); } } } }
+    fires=fires.filter(f=>f.life>0);
     for(const bm of beams) bm.life-=dt; beams=beams.filter(b=>b.life>0);
     // 지뢰
     for(const m of mines){ m.t+=dt; if(m.arm>0){ m.arm-=dt; continue; } const near=nearby(m.x,m.y,m.r); let trig=false; for(const i of near){ const e=enemies[i]; if(e&&!e.dying&&Math.hypot(e.x-m.x,e.y-m.y)<m.r){trig=true;break;} } if(trig){ explode(m.x,m.y,m.r,m.dmg,0); m.dead=true; } }
@@ -435,6 +439,8 @@
     const camX=cam.x-W/2+sx, camY=cam.y-H/2+sy; ctx.save(); ctx.translate(-camX,-camY);
     const x0=Math.floor(camX/TILE)*TILE,y0=Math.floor(camY/TILE)*TILE;
     for(let x=x0;x<camX+W+TILE;x+=TILE)for(let y=y0;y<camY+H+TILE;y+=TILE){ const cx=x/TILE|0,cy=y/TILE|0,h=hashCell(cx,cy); const f=h%10===0?'floor2':(h%4===0?'floor1':'floor0'); const im=IMG[f]; if(im)ctx.drawImage(im,x,y,TILE,TILE); const dec=h%37; if(dec===1){const i2=IMG['cactus'];if(i2)ctx.drawImage(i2,x+8,y+4,TILE*0.7,TILE*0.7);} else if(dec===5){const i2=IMG['rock'];if(i2)ctx.drawImage(i2,x+10,y+12,TILE*0.6,TILE*0.6);} }
+    // 바닥 화염
+    for(const f of fires){ const a=Math.max(0,Math.min(1,f.life/0.6))*(0.5+Math.random()*0.28); ctx.globalAlpha=a; ctx.fillStyle=Math.random()<0.5?'#ff6a1a':'#ffb33a'; ctx.beginPath(); ctx.arc(f.x,f.y,f.r*(0.7+0.3*Math.random()),0,7); ctx.fill(); ctx.globalAlpha=1; }
     // 지뢰
     for(const m of mines){ const blink=(Math.floor(m.t*6)&1)||m.arm>0; ctx.fillStyle='#3a1206'; ctx.beginPath(); ctx.arc(m.x,m.y,9,0,7); ctx.fill(); ctx.fillStyle=m.arm>0?'#888':(blink?'#ff3a2a':'#ffd23a'); ctx.beginPath(); ctx.arc(m.x,m.y,4,0,7); ctx.fill(); }
     for(const p of pickups){ const bob=Math.sin(p.t*6)*2; if(p.kind==='coin'){ ctx.fillStyle='#ffd23a'; ctx.strokeStyle='#7a4a00'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(p.x,p.y+bob,7,0,7); ctx.fill(); ctx.stroke(); } else if(p.kind==='heart'){ ctx.fillStyle='#ff5d6c'; ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.fillText('❤',p.x,p.y+6+bob); } else if(p.kind==='fullheart'){ ctx.save(); ctx.shadowColor='#ff7ab0'; ctx.shadowBlur=12; ctx.fillStyle='#ff7ab0'; ctx.font='26px sans-serif'; ctx.textAlign='center'; ctx.fillText('💗',p.x,p.y+9+bob); ctx.restore(); } else { ctx.fillStyle='#6a8cff'; ctx.strokeStyle='#152a5a'; ctx.lineWidth=2; ctx.fillRect(p.x-9,p.y-7+bob,18,14); ctx.strokeRect(p.x-9,p.y-7+bob,18,14); ctx.fillStyle='#dfe8ff'; ctx.font='bold 10px sans-serif'; ctx.textAlign='center'; ctx.fillText('탄',p.x,p.y+4+bob); } }
@@ -496,8 +502,8 @@
     setGold:(g)=>{ gold=g; }, addGold:(g)=>{gold+=g;}, setCur:(w)=>{cur=w;}, setPlayer:o=>Object.assign(player,o), setKey:(k,v)=>{keys[k]=v;},
     state:()=>({state,time,score,gold,kills,wave,hp:player&&player.hp,cur,ammo:Object.assign({},ammo),bought:[...bought],
       enemies:enemies.length,alive:enemies.filter(e=>!e.dying).length,bosses:enemies.filter(e=>e.boss&&!e.dying).length,megas:enemies.filter(e=>e.mega&&!e.dying).length,
-      bullets:bullets.length,ebs:ebs.length,mines:mines.length,beams:beams.length,pickups:pickups.length}),
-    _e:()=>enemies,_p:()=>player,_b:()=>bullets,_m:()=>mines,_ebs:()=>ebs, statsOf, wUnlocked, ammoOf:(w)=>ammo[w], keys }; }
+      bullets:bullets.length,ebs:ebs.length,mines:mines.length,beams:beams.length,fires:fires.length,pickups:pickups.length}),
+    _e:()=>enemies,_p:()=>player,_b:()=>bullets,_m:()=>mines,_ebs:()=>ebs,_fires:()=>fires, statsOf, wUnlocked, ammoOf:(w)=>ammo[w], keys }; }
 })();
 
 </script>
