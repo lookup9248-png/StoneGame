@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>던전로그 — Dungeon Log</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;background:#0d0a12;color:#e8e0d0;overflow:hidden;
+    font-family:"Trebuchet MS","Apple SD Gothic Neo","Segoe UI",system-ui,sans-serif;user-select:none;}
+  #wrap{position:relative;width:100vw;height:100vh;display:flex;flex-direction:column;}
+  #top{display:flex;gap:6px;align-items:center;padding:6px 8px;flex-wrap:wrap;background:#16121f;border-bottom:1px solid #2a2236;z-index:5;}
+  .stat{background:#221a2e;border:1px solid #36283f;border-radius:8px;padding:4px 9px;font-size:13px;font-weight:700;white-space:nowrap;}
+  .stat b{color:#ffd24a;}
+  #hpwrap{flex:1;min-width:90px;max-width:220px;height:16px;background:#2a1620;border-radius:8px;overflow:hidden;border:1px solid #5a2030;position:relative;}
+  #hpbar{height:100%;background:linear-gradient(90deg,#e0445a,#ff7a5a);transition:width .15s;}
+  #hptxt{position:absolute;inset:0;text-align:center;font-size:11px;font-weight:800;line-height:16px;text-shadow:0 1px 2px #000;}
+  #cv{flex:1;display:block;background:#0d0a12;image-rendering:pixelated;touch-action:none;}
+  #log{position:absolute;left:8px;bottom:8px;width:min(60vw,360px);font-size:12px;line-height:1.5;
+    color:#cbb;text-shadow:0 1px 2px #000;pointer-events:none;z-index:4;}
+  #log div{opacity:.85;}
+  #log div:last-child{color:#fff;opacity:1;}
+  /* 모바일 컨트롤 */
+  #pad{position:absolute;right:14px;bottom:14px;z-index:6;display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:5px;}
+  .pad-btn{background:rgba(50,40,66,.85);border:1px solid #4a3a56;border-radius:10px;color:#ffd24a;font-size:20px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+  .pad-btn:active{background:rgba(90,70,110,.95);}
+  .pad-empty{visibility:hidden;}
+  #actions{position:absolute;left:14px;bottom:64px;z-index:6;display:flex;flex-direction:column;gap:6px;}
+  .act{background:rgba(50,40,66,.85);border:1px solid #4a3a56;border-radius:10px;color:#e8e0d0;font-size:12px;font-weight:700;padding:8px 10px;min-width:64px;text-align:center;}
+  .act:active{background:rgba(90,70,110,.95);}
+  .act b{color:#7be08a;}
+  /* 패널 */
+  .panel{position:absolute;inset:0;z-index:12;display:flex;align-items:center;justify-content:center;background:rgba(8,6,12,.85);backdrop-filter:blur(3px);padding:22px;}
+  .panel.hidden{display:none;}
+  .card{background:linear-gradient(180deg,#241b32,#170f22);border:1px solid #3a2c48;border-radius:16px;padding:24px 26px;max-width:380px;width:100%;text-align:center;box-shadow:0 16px 44px rgba(0,0,0,.6);}
+  .card h1{font-size:28px;color:#ffd24a;margin-bottom:8px;letter-spacing:1px;}
+  .card h2{font-size:19px;color:#ff8a7a;margin:8px 0;}
+  .card p{font-size:13.5px;color:#cbbcd6;line-height:1.75;}
+  .card .key{display:inline-block;background:#33263f;border:1px solid #4a3a56;border-radius:5px;padding:1px 7px;font-weight:700;color:#ffd24a;font-size:12px;margin:1px;}
+  .btn{margin-top:16px;padding:12px 34px;background:linear-gradient(180deg,#ffd24a,#e8a020);color:#3a2400;border:none;border-radius:11px;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 5px 0 #9a6a10;}
+  .btn:active{transform:translateY(3px);box-shadow:0 2px 0 #9a6a10;}
+  #loading{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;color:#a98;font-weight:800;font-size:17px;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <span class="stat">B<b id="sDepth">1</b></span>
+    <div id="hpwrap"><div id="hpbar"></div><div id="hptxt"></div></div>
+    <span class="stat">Lv<b id="sLvl">1</b></span>
+    <span class="stat">⚔<b id="sAtk">4</b></span>
+    <span class="stat">🛡<b id="sDef">0</b></span>
+    <span class="stat">🪙<b id="sGold">0</b></span>
+    <span class="stat">🧪<b id="sPot">1</b></span>
+  </div>
+  <canvas id="cv"></canvas>
+  <div id="log"></div>
+  <div id="actions">
+    <div class="act" id="aPot">🧪 물약 <b id="aPotN">1</b></div>
+    <div class="act" id="aWait">⏳ 대기</div>
+    <div class="act" id="aDesc">▼ 계단</div>
+  </div>
+  <div id="pad">
+    <div class="pad-btn pad-empty"></div><div class="pad-btn" data-dir="up">▲</div><div class="pad-btn pad-empty"></div>
+    <div class="pad-btn" data-dir="left">◀</div><div class="pad-btn pad-empty"></div><div class="pad-btn" data-dir="right">▶</div>
+    <div class="pad-btn pad-empty"></div><div class="pad-btn" data-dir="down">▼</div><div class="pad-btn pad-empty"></div>
+  </div>
+</div>
+
+<div id="loading">던전 생성 중…</div>
+
+<div id="menu" class="panel hidden">
+  <div class="card">
+    <h1>🗡 던전로그</h1>
+    <p>턴제 로그라이크. 한 칸 움직일 때마다 몬스터도 한 턴 움직입니다.<br><br>
+    적에게 <b>이동해 부딪치면 공격</b>! 무기·방어구·물약을 모으고,
+    <b>계단(▼)</b>을 찾아 더 깊은 층으로 내려가세요.<br>
+    깊을수록 강한 적과 좋은 전리품이 기다립니다. 죽으면 끝!</p>
+    <p style="margin-top:10px;font-size:12px;">
+      <span class="key">방향키/WASD</span> 이동·공격 ·
+      <span class="key">Q</span> 물약 ·
+      <span class="key">Space</span> 대기 ·
+      <span class="key">&gt;/Enter</span> 계단</p>
+    <div style="margin-top:8px;font-size:12px;color:#bca;">최고 기록 지하 <b id="bestDepth" style="color:#ffd24a;">-</b>층</div>
+    <button class="btn" id="startBtn">던전 입장</button>
+  </div>
+</div>
+
+<div id="dead" class="panel hidden">
+  <div class="card">
+    <h1>☠ 사망</h1>
+    <h2 id="deadDepth"></h2>
+    <div id="deadStat" style="font-size:13px;color:#cbb;line-height:1.8;"></div>
+    <button class="btn" id="retryBtn">다시 도전</button>
+  </div>
+</div>
+
+<script>/* 던전로그 — 로그라이크 코어 (THREE/Canvas 비의존, node 테스트 가능) */
+(function(global){
+  // ---- 시드 RNG ----
+  function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+  // ---- 몬스터 정의 (tile 인덱스는 렌더에서만 사용) ----
+  const MTYPE = {
+    slime:   {name:'슬라임',  hp:6,  atk:3,  def:0, xp:3,  gold:2,  tile:108, minD:1, w:5},
+    spider:  {name:'거미',    hp:5,  atk:3,  def:0, xp:3,  gold:1,  tile:121, minD:1, w:4},
+    skeleton:{name:'해골',    hp:11, atk:5,  def:1, xp:6,  gold:5,  tile:86,  minD:2, w:4},
+    goblin:  {name:'고블린',  hp:9,  atk:4,  def:1, xp:5,  gold:6,  tile:112, minD:2, w:4},
+    ghost:   {name:'유령',    hp:8,  atk:5,  def:0, xp:6,  gold:4,  tile:120, minD:3, w:3},
+    imp:     {name:'임프',    hp:14, atk:6,  def:1, xp:9,  gold:9,  tile:109, minD:4, w:3},
+    demon:   {name:'데몬',    hp:20, atk:8,  def:2, xp:14, gold:16, tile:110, minD:6, w:2},
+    ogre:    {name:'오우거',  hp:30, atk:11, def:3, xp:22, gold:25, tile:88,  minD:8, w:1},
+  };
+  // ---- 아이템 정의 ----
+  const WEAPONS = {
+    dagger:    {name:'단검',   atk:2,  tile:106},
+    sword:     {name:'검',     atk:4,  tile:104},
+    mace:      {name:'철퇴',   atk:6,  tile:117},
+    axe:       {name:'도끼',   atk:7,  tile:118},
+    greatsword:{name:'대검',   atk:9,  tile:107},
+  };
+  const ARMORS = {
+    buckler: {name:'버클러', def:1, tile:102},
+    shield:  {name:'방패',   def:2, tile:101},
+    plate:   {name:'판금',   def:4, tile:100},
+  };
+
+  function makeGame(seed){
+    const rng = mulberry32((seed||((Math.random()*1e9)|0))>>>0);
+    const ri = (a,b)=> a + Math.floor(rng()*(b-a+1));
+    const pick = arr => arr[Math.floor(rng()*arr.length)];
+
+    const S = {
+      W:40, H:28, TS:16,
+      map:null, seen:null, vis:null,
+      player:{ x:0,y:0, hp:26, maxhp:26, atk:4, def:0, lvl:1, xp:0, xpNext:12,
+               gold:0, weapon:null, armor:null, potions:1, kills:0, name:'용사' },
+      monsters:[], items:[], stairs:{x:0,y:0},
+      depth:0, turns:0, state:'play', log:[], best: 0,
+    };
+    function logMsg(t){ S.log.push(t); if(S.log.length>40) S.log.shift(); }
+
+    const inb=(x,y)=> x>=0&&x<S.W&&y>=0&&y<S.H;
+    const isWall=(x,y)=> !inb(x,y) || S.map[y][x]==='wall';
+    const monAt=(x,y)=> S.monsters.find(m=>m.x===x&&m.y===y&&m.hp>0);
+    const itemAt=(x,y)=> S.items.find(it=>it.x===x&&it.y===y);
+
+    // ---------- 던전 생성 ----------
+    function genFloor(depth){
+      S.depth=depth;
+      S.map=[]; S.seen=[]; S.vis=[];
+      for(let y=0;y<S.H;y++){ S.map[y]=[]; S.seen[y]=[]; S.vis[y]=[]; for(let x=0;x<S.W;x++){ S.map[y][x]='wall'; S.seen[y][x]=false; S.vis[y][x]=false; } }
+      const rooms=[];
+      const tries=ri(8,11);
+      for(let i=0;i<tries;i++){
+        const w=ri(4,8), h=ri(4,6);
+        const x=ri(1,S.W-w-2), y=ri(1,S.H-h-2);
+        const r={x,y,w,h,cx:(x+(w>>1)),cy:(y+(h>>1))};
+        if(rooms.some(o=> x<=o.x+o.w+1 && x+w+1>=o.x && y<=o.y+o.h+1 && y+h+1>=o.y)) continue;
+        for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++) S.map[yy][xx]='floor';
+        rooms.push(r);
+      }
+      // 복도 연결
+      for(let i=1;i<rooms.length;i++){
+        let ax=rooms[i-1].cx, ay=rooms[i-1].cy, bx=rooms[i].cx, by=rooms[i].cy;
+        if(rng()<0.5){ carveH(ax,bx,ay); carveV(ay,by,bx); } else { carveV(ay,by,ax); carveH(ax,bx,by); }
+      }
+      S.rooms=rooms;
+      // 플레이어 = 첫 방
+      S.player.x=rooms[0].cx; S.player.y=rooms[0].cy;
+      // 계단 = 마지막 방
+      const last=rooms[rooms.length-1]; S.stairs={x:last.cx,y:last.cy};
+      // 몬스터/아이템 배치
+      S.monsters=[]; S.items=[];
+      const types=Object.keys(MTYPE).filter(k=>MTYPE[k].minD<=depth);
+      const wpool=[]; for(const k of types){ for(let i=0;i<MTYPE[k].w;i++)wpool.push(k); }
+      for(let i=1;i<rooms.length;i++){
+        const r=rooms[i];
+        const cnt=ri(1,2)+Math.floor(depth/3);
+        for(let c=0;c<cnt;c++){
+          const mx=ri(r.x,r.x+r.w-1), my=ri(r.y,r.y+r.h-1);
+          if((mx===S.stairs.x&&my===S.stairs.y)||monAt(mx,my))continue;
+          spawnMonster(pick(wpool),mx,my,depth);
+        }
+        // 아이템
+        if(rng()<0.6){ const ix=ri(r.x,r.x+r.w-1), iy=ri(r.y,r.y+r.h-1); if(!(ix===S.stairs.x&&iy===S.stairs.y)) dropItem(ix,iy,rollItem(depth)); }
+      }
+      // 보물상자 1~2개
+      for(let c=0;c<ri(1,2);c++){ const r=pick(rooms.slice(1)); if(r){ S.items.push({x:r.x,y:r.y,kind:'chest'}); } }
+      computeFOV();
+      logMsg('지하 '+depth+'층에 들어섰다.');
+    }
+    function carveH(x1,x2,y){ for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++) if(inb(x,y))S.map[y][x]='floor'; }
+    function carveV(y1,y2,x){ for(let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++) if(inb(x,y))S.map[y][x]='floor'; }
+
+    function spawnMonster(type,x,y,depth){
+      const t=MTYPE[type]; const sc=1+(depth-t.minD)*0.12;
+      S.monsters.push({ type, name:t.name, x,y, hp:Math.round(t.hp*sc), maxhp:Math.round(t.hp*sc),
+        atk:Math.round(t.atk*sc), def:t.def, xp:t.xp, gold:t.gold, tile:t.tile, hit:0 });
+    }
+    function rollItem(depth){
+      const r=rng();
+      if(r<0.5) return {kind:'potion', heal: r<0.18?22:11};
+      if(r<0.78){ const ks=Object.keys(WEAPONS); return {kind:'weapon', key: ks[Math.min(ks.length-1, Math.floor(rng()*Math.min(ks.length, 2+Math.floor(depth/2))))]}; }
+      const ks=Object.keys(ARMORS); return {kind:'armor', key: ks[Math.min(ks.length-1, Math.floor(rng()*Math.min(ks.length,1+Math.floor(depth/3))))]};
+    }
+    function dropItem(x,y,it){ it.x=x; it.y=y; S.items.push(it); }
+
+    // ---------- 시야(FOV) ----------
+    function computeFOV(){
+      const R=7, px=S.player.x, py=S.player.y;
+      for(let y=0;y<S.H;y++)for(let x=0;x<S.W;x++) S.vis[y][x]=false;
+      S.vis[py][px]=true; S.seen[py][px]=true;
+      for(let a=0;a<360;a+=4){
+        const dx=Math.cos(a*Math.PI/180), dy=Math.sin(a*Math.PI/180);
+        let fx=px+0.5, fy=py+0.5;
+        for(let i=0;i<R;i++){
+          fx+=dx; fy+=dy; const cx=Math.floor(fx), cy=Math.floor(fy);
+          if(!inb(cx,cy))break;
+          S.vis[cy][cx]=true; S.seen[cy][cx]=true;
+          if(S.map[cy][cx]==='wall')break;
+        }
+      }
+    }
+
+    // ---------- 전투 ----------
+    function pAtk(){ return S.player.atk + (S.player.weapon?WEAPONS[S.player.weapon].atk:0); }
+    function pDef(){ return S.player.def + (S.player.armor?ARMORS[S.player.armor].def:0); }
+    function attackMonster(m){
+      const dmg=Math.max(1, pAtk()-m.def + ri(-1,2));
+      m.hp-=dmg; m.hit=1;
+      logMsg('⚔ '+m.name+'에게 '+dmg+' 피해');
+      if(m.hp<=0){ killMonster(m); }
+    }
+    function killMonster(m){
+      logMsg('💀 '+m.name+' 처치! (+'+m.xp+' XP, +'+m.gold+' G)');
+      S.player.xp+=m.xp; S.player.gold+=m.gold; S.player.kills++;
+      while(S.player.xp>=S.player.xpNext){ levelUp(); }
+    }
+    function levelUp(){
+      S.player.xp-=S.player.xpNext; S.player.lvl++; S.player.xpNext=Math.round(S.player.xpNext*1.5);
+      S.player.maxhp+=6; S.player.hp=S.player.maxhp; S.player.atk+=1; if(S.player.lvl%3===0)S.player.def+=1;
+      logMsg('⭐ 레벨 '+S.player.lvl+'! 체력·공격 상승, 완전 회복.');
+    }
+    function attackPlayer(m){
+      const dmg=Math.max(1, m.atk-pDef() + ri(-1,1));
+      S.player.hp-=dmg;
+      logMsg('🩸 '+m.name+'에게 '+dmg+' 피해');
+      if(S.player.hp<=0){ S.player.hp=0; die(); }
+    }
+    function die(){ S.state='dead'; S.best=Math.max(S.best,S.depth); logMsg('☠ 쓰러졌다... 지하 '+S.depth+'층까지 도달.'); }
+
+    // ---------- 행동 ----------
+    function tryMove(dx,dy){
+      if(S.state!=='play') return false;
+      const nx=S.player.x+dx, ny=S.player.y+dy;
+      const m=monAt(nx,ny);
+      if(m){ attackMonster(m); monstersTurn(); afterTurn(); return true; }
+      if(isWall(nx,ny)){ return false; }
+      S.player.x=nx; S.player.y=ny;
+      const it=itemAt(nx,ny); if(it) pickup(it);
+      monstersTurn(); afterTurn(); return true;
+    }
+    function wait(){ if(S.state!=='play')return; monstersTurn(); afterTurn(); }
+    function pickup(it){
+      const i=S.items.indexOf(it); if(i>=0)S.items.splice(i,1);
+      if(it.kind==='potion'){ S.player.potions++; logMsg('🧪 물약 획득 (보유 '+S.player.potions+')'); it._heal=it.heal; }
+      else if(it.kind==='weapon'){ equipWeapon(it.key); }
+      else if(it.kind==='armor'){ equipArmor(it.key); }
+      else if(it.kind==='chest'){ openChest(it); }
+    }
+    function equipWeapon(key){
+      const cur=S.player.weapon;
+      if(!cur || WEAPONS[key].atk>WEAPONS[cur].atk){ S.player.weapon=key; logMsg('🗡 '+WEAPONS[key].name+' 장착 (공격 +'+WEAPONS[key].atk+')'); }
+      else logMsg(WEAPONS[key].name+'은 기존 무기보다 약하다.');
+    }
+    function equipArmor(key){
+      const cur=S.player.armor;
+      if(!cur || ARMORS[key].def>ARMORS[cur].def){ S.player.armor=key; logMsg('🛡 '+ARMORS[key].name+' 장착 (방어 +'+ARMORS[key].def+')'); }
+      else logMsg(ARMORS[key].name+'은 기존 방어구보다 약하다.');
+    }
+    function openChest(it){
+      const loot=rollItem(S.depth+1);
+      S.player.gold+=ri(5,12)*(1+S.depth);
+      logMsg('🎁 보물상자! 금화 획득.');
+      if(loot.kind==='potion'){ S.player.potions++; logMsg('🧪 물약도 들어있다.'); }
+      else if(loot.kind==='weapon'){ equipWeapon(loot.key); }
+      else equipArmor(loot.key);
+    }
+    function usePotion(){
+      if(S.state!=='play')return false;
+      if(S.player.potions<=0){ logMsg('물약이 없다.'); return false; }
+      S.player.potions--; const heal=Math.round(S.player.maxhp*0.5);
+      S.player.hp=Math.min(S.player.maxhp,S.player.hp+heal);
+      logMsg('🧪 물약 사용 (+'+heal+' 회복)'); monstersTurn(); afterTurn(); return true;
+    }
+    function descend(){
+      if(S.state!=='play')return false;
+      if(S.player.x===S.stairs.x && S.player.y===S.stairs.y){ genFloor(S.depth+1); return true; }
+      logMsg('계단(▼) 위에서 내려갈 수 있다.'); return false;
+    }
+
+    // ---------- 몬스터 턴 ----------
+    function monstersTurn(){
+      for(const m of S.monsters){
+        if(m.hp<=0)continue; if(m.hit>0)m.hit-=1;
+        const dist=Math.abs(m.x-S.player.x)+Math.abs(m.y-S.player.y);
+        if(dist===1){ attackPlayer(m); continue; }
+        if(dist>9 || !S.vis[m.y][m.x]) continue; // 멀거나 안 보이면 대기
+        // 플레이어 향해 한 칸 (탐욕적, 벽/타몬스터 회피)
+        const opts=[];
+        if(S.player.x>m.x)opts.push([1,0]); else if(S.player.x<m.x)opts.push([-1,0]);
+        if(S.player.y>m.y)opts.push([0,1]); else if(S.player.y<m.y)opts.push([0,-1]);
+        let moved=false;
+        for(const [dx,dy] of opts){
+          const nx=m.x+dx, ny=m.y+dy;
+          if(!isWall(nx,ny) && !monAt(nx,ny) && !(nx===S.player.x&&ny===S.player.y)){ m.x=nx; m.y=ny; moved=true; break; }
+        }
+      }
+      S.monsters=S.monsters.filter(m=>m.hp>0);
+    }
+    function afterTurn(){ S.turns++; computeFOV(); }
+
+    function newGame(){
+      Object.assign(S.player,{ hp:26,maxhp:26,atk:4,def:0,lvl:1,xp:0,xpNext:12,gold:0,weapon:null,armor:null,potions:1,kills:0 });
+      S.state='play'; S.log=[]; S.turns=0;
+      genFloor(1);
+    }
+
+    return {
+      state:S, MTYPE, WEAPONS, ARMORS,
+      inb, isWall, monAt, itemAt, genFloor, newGame,
+      tryMove, wait, usePotion, descend,
+      pAtk, pDef, computeFOV,
+      _spawnMonster:spawnMonster,
+    };
+  }
+
+  const api={makeGame, MTYPE, WEAPONS, ARMORS};
+  if(typeof module!=='undefined'&&module.exports) module.exports=api;
+  global.RL=api;
+})(typeof window!=='undefined'?window:globalThis);
+</script>
+<script>window.__RLT={"1": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFi5u0wMvcPyYxdjs2+rEOaAAAAB1JREFUCNdj+A8EDMQT/1YBiV9gQhREhMKJADABALguO1woLYvNAAAAAElFTkSuQmCC", "123": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAwMvc6qVsvWxKPyYxaqQ8bwAAAAF0Uk5TAEDm2GYAAABYSURBVAjXPY3BDcAwCAN5ZIROQDJBzQBVcvvPVKBSXz5hozOzAY9ZJxSAe50GDiuBzdexqmq43WeOmLc0I+FIKLtxFJ6fCSAVXBcRQTukKNvYitb+Vut8AR9xFXg+RlAJAAAAAElFTkSuQmCC", "86": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABtQTFRFAAAAi5u0JitE4ZplwMvcdjs2vWxK98KCPyYxqlFl6gAAAAF0Uk5TAEDm2GYAAABjSURBVAjXY2BAgA4gANEcIEYDSKC5vNwCJNRhXl5eDGakl5eXoTLKlYrUwYzwsrBSMKM1tDSiA2SMW2hoCNCgjhY3F5cUjw6gWtG0tMByEKMtLS0DxAAqDo0AWsvRARLpaAAAnUUrTOxRKb0AAAAASUVORK5CYII=", "41": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFUmB8wMvci5u06qVsJitEVbqbFgAAAE5JREFUCNdjMDZ2cTZxMTZmMHYBA2MGExdHFxcRF2cGEydGJgUBFSDDQVCBUYgFmeGkoKTEpIKsBp9iJSAASTkKAoEIkAGxyxlhqTEUAAA6ghYvbtTzzgAAAABJRU5ErkJggg==", "55": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAi5u0wMvcUmB8JitEEoTDDwAAAAF0Uk5TAEDm2GYAAABFSURBVAjXY2BwAQMGBhYIw4GBxVkJCEyADCdjIFBBYZi4uDgTYMC1OwoCgQhIBKQdRcQJxAApdgHpAlrK4KLi4uLkwgAAuTQW+xKMe8kAAAAASUVORK5CYII=", "70": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAvWxKwMvci5u06qVsPyYxqfHTIgAAAAF0Uk5TAEDm2GYAAAA2SURBVAjXYwgNYA0FYYZQKGBwCQ11AWEGJShgMIYCBhdjYxcQRqjBw8CjXTA0VBCEEZbCnAEAEccf4WY4KW8AAAAASUVORK5CYII=", "65": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAWmmIwMvcJitEi5u0dCpiwQAAAAF0Uk5TAEDm2GYAAABASURBVAjXY2CAA2ZjIDAAMozBACTgpKSkAhRiNgIxlFEYLkAAYpiAGM4ghqOgoAiE4eIigiqCUOMogiYCZcAAAB+BE3YUl1PbAAAAAElFTkSuQmCC", "94": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAvWxKwMvci5u06qVsPyYxqfHTIgAAAAF0Uk5TAEDm2GYAAAA2SURBVAjXYwgNYA0FYYZQKGBwCQ11AWEGJShgMIYCBhdjYxcQRqjBw8CjXTA0VBCEEZbCnAEAEccf4WY4KW8AAAAASUVORK5CYII=", "101": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAi5u0vWxKwMvcPyYxo/wp1QAAAAF0Uk5TAEDm2GYAAAAuSURBVAjXY2DAB1yAAESzgBgOIIajsbEImOGspGQCYSgboTNgUnDFMO1wA3ECAAz/CuXOW7hhAAAAAElFTkSuQmCC", "14": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAlQTFRFwMvcUmB8i5u0Ok/JaAAAADFJREFUCNdjCAUChlVTQ6OgxKxVsxjAYmqrljEwLFu1bBWEAIuFRjBMZQiNWjUVpzoAppYe2ad+dt0AAAAASUVORK5CYII=", "23": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFwMvcvWxKi5u0UmB8PyYxJitEyR1e8QAAAEVJREFUCNdjCIUAYwbj0NBg09DQIAZjJiVmAyXVUDDDxMUolAGkwMXFCcoQgTMcYAxnUxRGCExNiBOCAVEcgqEY2UCnUABz+iIzvA6SlAAAAABJRU5ErkJggg==", "117": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRFAAAAdjs2UmB86qVsi5u0vWxKwMvcPyYxq3epsgAAAAF0Uk5TAEDm2GYAAABFSURBVAjXY2BgYCgvZwAB9nIgKADzS8PBYuVuaUkpYEYaEOBguKmlQdSUF4qDdbGDtBeATSw2L4AYXRoOZWCKQOyEOQMATbgdsICtAb0AAAAASUVORK5CYII=", "67": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAvWxK6qVswMvcPyYxKSII8QAAAAF0Uk5TAEDm2GYAAAA5SURBVAjXY2CAAxYXByACMlzAAMQwdgEikAyY4cDgAmG4MLgoGispGQthZQgaCwKRC0IxXDsR5gAACScXcsCQcIEAAAAASUVORK5CYII=", "77": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAJitEi5u0wMvcPyYxlqaLtgAAAAF0Uk5TAEDm2GYAAAA0SURBVAjXY2CAAxcXCGZxcXEAYQYWZxMHEGZwcTZxAWEEQ0nYUAmEEQwXJxUXECZTMcwuABKuF4OYoA7IAAAAAElFTkSuQmCC", "103": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAi5u0vWxKwMvcPyYxo/wp1QAAAAF0Uk5TAEDm2GYAAAAzSURBVAjXY2DABlhcoAwXFweogAmU4UyY4eIoAtHvYmwMZTipQBgsTiowA6EmA61AthkAZQIJcPsAuGYAAAAASUVORK5CYII=", "93": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAvWxK6qVsi5u0wMvcPyYxSuR3WgAAAAF0Uk5TAEDm2GYAAABZSURBVAjXNcvRCcAwCARQfzJAyAQRskB1gmIHSOD2X6WnkEPwIZ6gR+dAgOAsSCvoEUl4RGGbWUGHPYmjE/njr64LEA3Dv8KZxnYQ7GS9QcGd9coWnipy8wMwxBt22mMA+QAAAABJRU5ErkJggg==", "24": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFvWxKi5u0PyYxwMvcdjs2/Pre9wAAAEtJREFUCNdVi8ENACAIA3m4gU5A2KBMIOw/k1V5aD+9NFfJitzqQ7IpAc5F7xKscLXjhINyeE4reO4bOga7SQJU9/ICb+UcULXvvgBCWR1LPpZFPwAAAABJRU5ErkJggg==", "100": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABtQTFRFAAAAJitE4ZplvWxKwMvcdjs298KCi5u0PyYx2oMaEAAAAAF0Uk5TAEDm2GYAAABzSURBVAjXY2BAgI6OjgYQzdEBZXW0l7hXdIAY5eUu5R0gmfIS93KgHEd7uZJ6eQWQ0VKUllbuAWK4CSaKgBllaWppHmA1aWnpQDUdbeFKSqUZHQwdaamhpmFpIEazcbFFMpDR0RoaGmHRATQ5NNQ0wqIBANQWKpjCoiiYAAAAAElFTkSuQmCC", "121": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFAAAAi5u0wMvcPyYxKaGK/AAAAAF0Uk5TAEDm2GYAAABPSURBVAjXY2AAg///GRiY//8/wMB/a/kHBv6slUBi1SogsX4flLBfteoPw//Vv/4z/F796z3Dr+yd6xl+Za0EEq9Wr2f49zV8P4P9q/V/AJcrKOLbimK6AAAAAElFTkSuQmCC", "43": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFi5u0z4JUUmB8wMvcJitE6qVsdtQR+QAAADRJREFUCNdjEHE2UXFyNnFkwMMIcWY2NjYwcWUIcTEGAhdXhlAXMAhlCA0B0a5ABhRQyAAAFXIkECDKFngAAAAASUVORK5CYII=", "122": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABtQTFRFAAAA////6qVsUmB8djs2i5u0wMvcvWxKPyYxDvufLAAAAAF0Uk5TAEDm2GYAAABrSURBVAjXLYyxDYAwDARdegNGYATYgEyAWIDILQHJlJGA8GPzAVyd7+0XhQIZWfCPYII7LkLsUrtGgp2pDYWA0z3Um7FzX+caHdvQ18imYbteMPfyQbO8ALv3wi9lNYuzCLgaRKg4FFRZKR4R4TZTX/aSZAAAAABJRU5ErkJggg==", "99": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAB5QTFRFAAAA6qVsJitE4Zpldjs20XbQm0yj98KCvWxKPyYxwZOybwAAAAF0Uk5TAEDm2GYAAABuSURBVAjXRc2xDYAwDATAtBmBCRiAgg2QGAAkFjCiR3IYAOXpUiDgt8Wm4Ruf/guH8IcWv9FRvDgTeq+YM0BfkAwlxBPIqTc8qLU+HNlQfdBWvwaqq4E3mqbbGKhJxlkdz7BPDl4ii72NFBkXlheWKDJppxZU3AAAAABJRU5ErkJggg==", "90": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABtQTFRFAAAAJitE6qVsWmmIi5u0djs2vWxKwMvcPyYxuukpbQAAAAF0Uk5TAEDm2GYAAABUSURBVAjXY2DAABwdYNDA0AEFDB0pbmlpKW5ARnqRkpJ6GVikvBwsUl5cKG5ejsyI6Cgv72gFM4AAxMgAMdqAjDQwADJMQ4EgGMgoAwmkg7SDQQcAHgYxeuHuWg8AAAAASUVORK5CYII=", "58": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFi5u0wMvcPyYxUmB8CrPMRQAAACtJREFUCNdjWPr/fxTD0jPhIII5imHxGeZTDIv//z/FsPSqMVDsAJwgTh0A8Fkk/0LaqvYAAAAASUVORK5CYII=", "38": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFJitEUmB8wMvci5u0B/iEqQAAADBJREFUCNdj+P///wOG//uBxKpXqzYwhIaGBjBAxEDEqlVoYvtBYq+Qxf6BiNUwdQCqfC7dTsacFwAAAABJRU5ErkJggg==", "47": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFwMvci5u0UmB8vWxKJitEPyYxdjs2qOMdIAAAAEhJREFUCNdjcIEAJQYlFxcnFRcXRwYlRkEmBUERF4ZQMFCEMQJdGIKNgSAVxEgDAtMAGCNIBZ0BUpMohswAKU4Nw6kYZDKQAQDM3CSzdradxQAAAABJRU5ErkJggg==", "37": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAlQTFRFUmB8wMvci5u0dJKLrgAAACRJREFUCNdjWAUEDKuygETo1NBQBjCAiIGI0FA0sZUgsTDc6gCCvxqR9qEgxgAAAABJRU5ErkJggg==", "60": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAABGdBTUEAALGPC/xhBQAAAAZQTFRFAAAA////pdmf3QAAAAF0Uk5TAEDm2GYAAAAkSURBVAjXY2BgYLCxYaixY0hggyIgYGwAISCACwIVAJUxMAAAi+0Fy2DWcZIAAAAASUVORK5CYII=", "110": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFAAAAvWxKdjs298KC/3Bt6EU3PyYx+VGpDwAAAAF0Uk5TAEDm2GYAAABiSURBVAjXPY3BDYAwCEU5uUA3qC5QmziAKRsUzk0Mf/8RBEzk9OB9gAhZRNsHi2CYDAVBefI0B9hk9RDMRDTVXeuRau/9TFWeq6VCKwg1fMVGgAASIPFBIhwTD/9P/dDyhl4G/yqjkvUB4wAAAABJRU5ErkJggg==", "84": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAB5QTFRFAAAAqrfMvWxKJitEi5u00XbQ98KCwMvcm0yjPyYxhW+MwQAAAAF0Uk5TAEDm2GYAAABoSURBVAjXTc2xCYBADAXQa28ewREOF7CwViKWVjkX0KQTQcnf1gQbUz1+Qn5KGThTDPApQwQImH3KcKgvs/U+6rgVsCGSQjRFgtKMbdzgmXlB/NsLdZ6AhLkSfpCLeZOAHas6vJSrV7xSOjc2m/JhPQAAAABJRU5ErkJggg==", "51": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAlQTFRF/smcz4JU6qVszCBWUwAAACdJREFUCNdjCAUCBjRiZWjUKoZVq1ZoMcxaCiRWLl0F4naBiFUECADQdiNMtC9+SwAAAABJRU5ErkJggg==", "75": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFdjs26qVsPyYxvWxK8Gb41wAAAB9JREFUCNdjWBoaGsWw/v//X1CCQwFGhIb+QpIgUh0Au4Ysdbz3tgEAAAAASUVORK5CYII=", "109": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRFAAAAJitEdjs2////4ZplvWxK98KCPyYxLIt81AAAAAF0Uk5TAEDm2GYAAABhSURBVAjXJcuxDYAwEAPA7xggG1DAIigLoCc9kE8bISVen3fi6mTZIgKPeBaiOtDMEiucZnnAPBPHESeeMJv4hBd8d46roKvqVeCTDPAGi6u9A/3eCqGf6q5sWmqJDQjgByPAK1mAzG9+AAAAAElFTkSuQmCC", "25": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFUmB8i5u0wMvcPyYxdjs2CtrBhgAAACdJREFUCNdjcAEBYyVjBpwMJXSGEIwhKAhhODNCGS4ODFCGiwt5DABmNR7wWp4E4wAAAABJRU5ErkJggg==", "49": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAlQTFRF/smcz4JU6qVszCBWUwAAACRJREFUCNdjWAUEDGCiCUwsg3FXgiWWwolV6EQWjNUF5naBuQCFaSmi6lH99AAAAABJRU5ErkJggg==", "46": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFwMvci5u0UmB8vWxKJitEPyYxdjs2qOMdIAAAAEpJREFUCNdjUHKBAAYRFxcnFRcXJQYXR0EmBUEBIEMoFAwYXEThjDBjIDBlcGENTgMCUwYnVXSGiygyI1EMqhjEAKtJDcOhGGwyADJsIkw/06vSAAAAAElFTkSuQmCC", "44": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRFaf/Ui5u0z4JUUmB8Q+GzwMvcJitE6qVsKD2T2gAAAD1JREFUCNdjUEsNM3FODUtiQGKEmDi7QhgGzCBGWapoaGhgWDpDWVooEKSlM5SngUE5Q3kZiE4HMqCAQgYAE6YzZ3NqcCkAAAAASUVORK5CYII=", "71": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAvWxKi5u06qVswMvcPyYxjLphEAAAAAF0Uk5TAEDm2GYAAABVSURBVAjXRcrRDYAgEIPh20Fd4OIC2jAB5R2D3X8V4SDxf/qS1mQr9QJJiySLVM3c/cxJMb3ExMM8gb0EGi4GgDRAZmjAnSlw90NHtaMFZLoIcPvxAUsqHBqKTH9XAAAAAElFTkSuQmCC", "89": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABtQTFRFAAAAJitEWmmIdjs2i5u06qVsvWxKwMvcPyYx383hIwAAAAF0Uk5TAEDm2GYAAABHSURBVAjXY2DAABwdYNDA0AEFDB0pbmlpKW5ARnppaGh4GX4GXHGKW3k5mFFeVCiuXo7MUDYuLzc2AjLK0oyN09JBUmDQAQDusS8nXSnWbQAAAABJRU5ErkJggg==", "85": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABtQTFRFAAAAi5u0JitE4Zpldjs2wMvc98KCvWxKPyYxHCVAtQAAAAF0Uk5TAEDm2GYAAABpSURBVAjXRc3BCcAgDAVQjy7QCQQXKJRuUK8ehE4QFyj9HoVazNhNcum/5PEJiXN/WKLTK7oWA0ha8QFcBlRUw01EBooUDVtYg+HZaGc9k4FFDvFbJCfL7lJKJsUEmoJHGkneep5tNu4fSh4qTrVfKjgAAAAASUVORK5CYII=", "114": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRFAAAAi5u0wMvc6qVsvWxKQ+GzJZVqPyYxoj3kbwAAAAF0Uk5TAEDm2GYAAAA8SURBVAjXY2DAAtjLywvAjHIggDCcTdAZheJQRpF6OURTaChYG3tZaGg6hJGWhsYoT0uDGA03GW4XBAAAvBEWyBnVqV8AAAAASUVORK5CYII=", "98": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAB5QTFRFAAAAJitEdjs2i5u04ZplUmB8wMvc98KCvWxKPyYxfAswwAAAAAF0Uk5TAEDm2GYAAABuSURBVAjXY2BAgJlAAKI5QYwJIIFJHR2aIKGZGh0dTWBGR0VHBZjRXl5eDmaUi5eLgxnuIi4iYMYU93JPIINzWubMmdMyJzDMnJaclmaWOZNhZqhxaphxKIgxo6OjE8SYOTVyaiTQWk6gSqD6CQB9Ni8Nvp1qkgAAAABJRU5ErkJggg==", "68": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAi5u06qVsvWxKwMvcPyYx1NREsgAAAAF0Uk5TAEDm2GYAAABBSURBVAjXYwhVdlFScjEKZQg1djEGIiAj1AWMGFghjAAEAy6F0IXJwGKOYCgQBTAwQBgMQAYYABmsoQGsIBkYAAA3rR2wsbIOUgAAAABJRU5ErkJggg==", "56": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAA5O35wMvci5u0UmB8JitEVPxIMAAAAAF0Uk5TAEDm2GYAAABbSURBVAjXNY2xEYAwDANNkRFYAJIFYrNAHHrOifZfhbMDavT3hURECQ9FAEQnHEvBekGI3JurZB2hkt2YzWEUIGBWIIfRYhIg9VQHsAr70D5Er7XI/H38rxtcvC1mFoyRrkNTAAAAAElFTkSuQmCC", "19": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFwMvcUmB8i5u0JitEft8xBAAAAFVJREFUCNcNwbEVQDAYhdGvtwWdfdRGyBpmyAA5/AqFPlGqdJbQqMM5edxL98MCHpM8SSpob8Q7tjc5Rkc2c2g9REwlklIpLEP90F/zSSVtTJIxWbAP3nEtjH0A80QAAAAASUVORK5CYII=", "8": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFJZVqaf/UQ+GzwMvcJitEUmB8i5u0kiF6vAAAAGdJREFUCNctzcENgDAIBdCenMAVdAFM72rLAEY8q4W//wiCCpeX8PNJ8k8CcACGANGH1nJ2iJSWi2fIAkQJGmDP6ApMDtn5MK3eo+xb48Rn92MbArKXayz17Zn7t8d06RmeMdyj/38A7UkpabF1b+EAAAAASUVORK5CYII=", "74": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAUmB85O35i5u0wMvcJitEu7KpWAAAAAF0Uk5TAEDm2GYAAABVSURBVAjXZc27CcAwDARQNRnAK8gTBJEBjKVeEG7/VXxyCClyzb1CH5F/DjBvI0UAdw8KcwMPphO9oISpajfiNuYC13fX/rAz6iJGa5GFurNRM/n9XorfF7dQs8iEAAAAAElFTkSuQmCC", "34": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFwMvcdjs2i5u0vWxKUmB8PyYxJitEftQZXAAAAFpJREFUCNdjcEmDAAa1tLQUt7Q0F4a0JCUWByUFIEMlNDQUzFAFMsKAatJUA41FQYrTWIMFzUAiKa7BgqZpUIYZRE2wEFgExICIsAaLItRAGcJpUDVmMAbYGQDLTib9akNZ9AAAAABJRU5ErkJggg==", "107": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAA6EU3wMvc6qVsvWxKPyYxuaHJdAAAAAF0Uk5TAEDm2GYAAAA5SURBVAjXY2BgYAgNZQAD1tDQADAjNMQUIhTqYkw6gxXECAAzAkUhjCBFIVWISIgrxA4QA9VSiDMA8Y4SAZnu1kcAAAAASUVORK5CYII=", "12": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAlQTFRFvWxKPyYxdjs2DTnPkgAAAEJJREFUCNdjWAUEDKtWhUYxrFoZGgYkEqYBCQcxhlWRQGJZJJgLlFgaBlQyNRSoeArrtCwQAWIBuWCxpWFgU1atAgAC9SBkoYLPuAAAAABJRU5ErkJggg==", "62": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAABGdBTUEAALGPC/xhBQAAAAZQTFRFAAAA////pdmf3QAAAAF0Uk5TAEDm2GYAAAAwSURBVAjXY2BgYGBkYFA4wCDxgEGmgIHPgoFdhsG5h8HwEIMFXESCgZmFgaEBqBYAtPkHIVRwnfYAAAAASUVORK5CYII=", "63": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAdjs26qVsvWxKPyYxWHQ6vwAAAAF0Uk5TAEDm2GYAAAA2SURBVAjXY2BxAQMHBhcoYHAxUgICZSBDCQxADGNhQ2McDLgaGMMYDFAYgo4igqgMkFpjLIoBFBgY6KzCXbwAAAAASUVORK5CYII=", "59": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFwMvcPyYxUmB8i5u0KCnw8QAAACVJREFUCNdjWLVqHSvD/998IOIfmNjKABTbysD3H8j9ByeIVAcAooArCwfNJVoAAAAASUVORK5CYII=", "33": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFwMvcdjs2vWxKUmB8i5u0PyYxJitEzIEdiAAAAGBJREFUCNctyssNgCAQRdHZWIBGGjBhGgBtgIG9JEwDktd/CfK7q7O45DBylCYqoUrwkkAIpRTxDbFBpeO9DDq2vLMS6LvzbuGeAdYGxHza8TSwztlYrJnXfABzZqwZHT/BAyUThOtOBAAAAABJRU5ErkJggg==", "53": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAABGdBTUEAALGPC/xhBQAAAAZQTFRFz4JU6qVs+ZFeAAAAABNJREFUCNdj4P/PAEHy/xn+E0YAYE4cMZ2zmzIAAAAASUVORK5CYII=", "96": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAvWxKUmB8wMvci5u0PyYx3fDfjAAAAAF0Uk5TAEDm2GYAAABaSURBVAjXY2BAAqGhMBrCYg0NNg0NAAmEGBu7goRCVYyNncAMFyCAMEJCQtAYEClWoGagAQEMocEmxsbOpqEMoUouRsouSiBGoKCgKIgRGqQapAq0DWQVyDIAH0QZnVyQmb0AAAAASUVORK5CYII=", "113": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAA6qVsvWxKwMvci5u0PyYx4pm7/gAAAAF0Uk5TAEDm2GYAAAA8SURBVAjXY2DAAlhDQwPAjFAggDAUhdAZIa5QRrBpKESTsTFYG2uIsbErhOHigsYIdXGBGA03GW4XBAAACBsQAteM20MAAAAASUVORK5CYII=", "45": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFwMvcUmB8vWxKi5u0djs2PyYxJitEbd1PYQAAAFVJREFUCNdjEEwDA0EGMwgjmSEt2dhQ2NgsjSHNMBQIhIEMUxAjGMQIUVJyBTFYg1xcVAPSGBJFQYxAMQQjzRTEACsOcjZRhSgGMiCKXUNwKlZSAjIAbVsjd2U6nq0AAAAASUVORK5CYII=", "50": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAABGdBTUEAALGPC/xhBQAAAAZQTFRFz4JU6qVs+ZFeAAAAABJJREFUCNdjYEACD+wZ/v/HjwCQ0hcKtZtzkAAAAABJRU5ErkJggg==", "48": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAB1JREFUOI1jfLU05z8DBYCJEs2jBowaMGrAYDIAAFXwAxr14JwoAAAAAElFTkSuQmCC", "0": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAB1JREFUOI1jLLM2+89AAWCiRPOoAaMGjBowmAwAAPZPAgZ7bKDkAAAAAElFTkSuQmCC", "115": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRFAAAAi5u0wMvcvWxK6qVs/3Bt6EU3PyYxs4T0bwAAAAF0Uk5TAEDm2GYAAAA8SURBVAjXY2DAAtjLywvAjHIggDBMnNEZheJQRpF6OURTaChYG3tZaGg6hJGWhsYoT0uDGA03GW4XBAAAu/MWyHy8dtcAAAAASUVORK5CYII=", "36": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFJitEUmB8wMvci5u0B/iEqQAAACpJREFUCNdj4P7//z8D9z8gwbd61SoG1tDQUAaIGIjgW0WE2G+Q2DqIGADp2iSBTJ449gAAAABJRU5ErkJggg==", "72": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAdjs2vWxK6qVsPyYx9xQEvQAAAAF0Uk5TAEDm2GYAAAAySURBVAjXY2BxAQMHBhcoYHBRNgYCIyDDGAzIZiiBATJDEGSBIEhESElJESwFEkFiAADXchsZ17WF3gAAAABJRU5ErkJggg==", "78": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAJitEi5u0wMvcPyYxlqaLtgAAAAF0Uk5TAEDm2GYAAAA0SURBVAjXY2CAAxcXCGZxcXEAYQYWZxMHEGZwcTZxcUFhKAkbKikJIzNcnFRcgJhcxTC7ACkSF+t3nl/ZAAAAAElFTkSuQmCC", "7": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFwMvcUmB8JitEi5u0xSS/EAAAAFNJREFUCNdjCAUChv/f/99n+P+BH0icMb7PELrGKpSBd40VA8O/NVb7Gf71f9rPELb93lSGf/v2zYcS2+/NZwhb/2sqA++qVQwMf1+t/s/wF2gMAEnxKqM+ffLvAAAAAElFTkSuQmCC", "27": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFUmB8i5u0wMvcPyYxdjs2CtrBhgAAACdJREFUCNdjMFYydgEBBkyGEiZDEcoQFIQxBEwgDAYWFwjDxYUSBgBKoB7DNZ90rQAAAABJRU5ErkJggg==", "9": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFwMvcvWxKUmB8i5u0JitEkPo1xQAAAEpJREFUCNdjUHIBAyUGEwjDmcHF2dhI2djEhcHFCMRQBjKMQTLGyAwGEANIOYH1K6kgGPgVizhCFDs6iohAFAsKQhQ7CgqKGLsAACVIG7JDy5GLAAAAAElFTkSuQmCC", "22": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFwMvcvWxKi5u0UmB8PyYxJitEyR1e8QAAAEZJREFUCNdjMA6FAAbV0NBg09BQY4bQICVmAyUFIEPZxRnCUHFxAasJVXGEMligjGATdAZIjSuUoeIKVQxhgNS4YihGYQAApwgjIwXjYjIAAAAASUVORK5CYII=", "69": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAvWxKi5u06qVswMvcPyYxjLphEAAAAAF0Uk5TAEDm2GYAAABaSURBVAjXPc3dDYAwCARgXjqBcYE6gbl2AM05gKG3/ypiMfIAX/gJZhnKHPEVuVmRBsloeDtrrQHwmiM1rolxIMEFPeFAQmjznHLGeQnE2hYPXvTbtBPgoh8PSJEcOKdO4EkAAAAASUVORK5CYII=", "127": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRFAAAAi5u0/3BtwMvc6qVsvWxK6EU3PyYxtw04YQAAAAF0Uk5TAEDm2GYAAAAxSURBVAjXY2DAAtjLywvAjHIggDBCXNEZxsZQRqE4hMFepF6AxihLx8mAWcEAtQEKANqfEYmTtBjXAAAAAElFTkSuQmCC", "92": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAACRQTFRFAAAAJitE////6qVsWmmI6EU3i5u0/3Btdjs2vWxKwMvcPyYxu2k0vwAAAAF0Uk5TAEDm2GYAAABuSURBVAjXY+DeDQYbGHZDAcPuaZkzZ07LBDJmLTY2tloJFlm1CiyyaslCKa9VyIzu7FWrtu0AMbR3794EZuzeAURAxmzt0NBNO0GM1aXhu0CMmTPLy2fOBDI8OsrLO1qAjJUzp1fOnAUyEAx2AwDXKE2zDQ3D5QAAAABJRU5ErkJggg==", "26": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRF6qVsvWxKUmB8PyYxwMvci5u0djs2VP5nEwAAAE9JREFUCNdNyMENgDAMQ1Gv0AsDILgjlREyAh6gB7z/CHWqCvqlJE8BqruAcTPUOyIS8RieBSfJw2DC82OfQdJLSlApRtsSyjB2KxPfZ0UH8RcknA2RBgEAAAAASUVORK5CYII=", "39": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFUmB8wMvcJitEi5u0aivWQgAAACtJREFUCNdjWP7//y0GMLE2NLSKYQEDAxeEu/w+SKwUVez/d5C6WFQxZL0AU5Yl5dmQp/YAAAAASUVORK5CYII=", "76": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAJitEi5u0wMvcPyYxlqaLtgAAAAF0Uk5TAEDm2GYAAAA0SURBVAjXY2CAAxcXCGZxcXEAYQYWZxMHEAYxXFyAGJlhqKQkbKiExHBScXEBYvIVg+0CALbPFgvboTzVAAAAAElFTkSuQmCC", "131": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFAAAAdjs2i5u06qVswMvcvWxKPyYxD/eMEwAAAAF0Uk5TAEDm2GYAAAA+SURBVAjXY2BgYGBLY4CAtLQEMM2W5gZlpEAZaSluEEVpKk5QRqIYhMGWGpaAxkiGi5jhFIErhlkKtB1IAADMwBFHo/8u9wAAAABJRU5ErkJggg==", "21": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFwMvcvWxKUmB8i5u0PyYxJitELNXRYwAAAE9JREFUCNdjUAoFAyUGUwgjmCE02NhI2dg0lCHUyMVJ2VgZyDBxcQkNNQYxHKEMFhCDIZQhSAXEUFJFMEBqXKGKTVyhioEMqGJXDMUoJgMAceYhHmv48sIAAAAASUVORK5CYII=", "112": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABtQTFRFAAAAQ+GzJitE4Zpl98KCdjs2JZVqvWxKPyYxG/cZZQAAAAF0Uk5TAEDm2GYAAABwSURBVAjXHc0xDsIwEATAK2nzhvgHRMoDYp4QcEvBJX0w6zISMt5nc75qR3vSnogIeYp4kj0vbPCKFUi94gPIDn0O6ngv1+iIIQbHFOLo+N7WmX3mtea7DbEpqYXC4wPd7Eb8FDsMrKkme2s/Sys8//d5LEDyRCxcAAAAAElFTkSuQmCC", "124": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAA6qVswMvci5u0PyYxqLPFjAAAAAF0Uk5TAEDm2GYAAABaSURBVAjXPY3bDYAwDAPz0QUqmCB0gjoD8Lj9ZyIpEl8+2ZbOzBqcZiuhAHqvqtFhT+Di29hx/2C6H3lim9IRCY+EcmuPwvECkArGICJYDinK1m7F0v5WW/kC9SMVJG0p8YYAAAAASUVORK5CYII=", "108": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAaf/UJZVqQ+GzPyYxGHw1NQAAAAF0Uk5TAEDm2GYAAABMSURBVAjXbY3BDcAwCAPzYAFmYAPwAJXs/WdqIH20Uv06WWdY6ycmXQPaOYX7VEZ3HKgaEAm0pCBS7UZVbtsYYOIN6lUfMlU9P765AeEkDwN2VLJrAAAAAElFTkSuQmCC", "87": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAB5QTFRFAAAA98KC4ZplUmB8JitE6qVsi5u0vWxKwMvcPyYx+MwxjQAAAAF0Uk5TAEDm2GYAAABvSURBVAjXRYyxDYBADAO/ZQzGoISCDZBgARQGgPyXNFG+QyDBe1sSGtzkHNkO4RdMdip8OszfSov9MJCSrA5RSR2ecRaaYGHppbdwwN7WnfdxMif4jjBH3ymaELO1mKJu7HCrLg64mquB75RcMo4XRRU3svu3bDYAAAAASUVORK5CYII=", "130": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAdjs26qVsdeP/vWxKPyYx+PmuDwAAAAF0Uk5TAEDm2GYAAABFSURBVAjXY2BgYAgNZQAD1tDQAAgj2BTCCA02hciFOpugM1ScoIxAUQiDNcQVygh1gUqFwBgurjAG1IrQENcAVEshzgAAkoEQmy8toB4AAAAASUVORK5CYII=", "66": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAdjs26qVsvWxKPyYxWHQ6vwAAAAF0Uk5TAEDm2GYAAABPSURBVAjXZY3BDYAwDAP96AJIncBhgoYBKO3+M2FX6gfudbpIMVCmuAHMBRRSKJWRZF6Sp5FhGY0R37Ilf7JP/nMuES7dUrXaD1G1DgvwAj9WFHXntWD2AAAAAElFTkSuQmCC", "95": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAvWxK6qVsi5u0wMvcPyYxSuR3WgAAAAF0Uk5TAEDm2GYAAABXSURBVAjXPcuBCQAhDAPArOCDC9TvANIR7AAin/1X+VrBEOhBCVi8RAkuJ6NQSUy4jw3AzGqiWZeE8hE9WPKOBC++0XPuwx6dex67QAtQ4lWZAc6duPkBSFIb7rYfbG0AAAAASUVORK5CYII=", "15": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAlQTFRFwMvcPyYxdjs2IEVGgwAAABBJREFUCNdjCIhatYqBegQA8Jwf4cvcQkcAAAAASUVORK5CYII=", "120": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAA////djs26qVsvWxKPyYx6WRJ7QAAAAF0Uk5TAEDm2GYAAABPSURBVAjXY2DAAlhDQwNAdCgYgPmmwSCx0JBQZ5NQ11CGUBcnY2MVFzBD2BDCMDE2dgYzXI2NQ0AMU1MXl+DgUJAxIO2hIHNAIADJCnQAAJTgF8d0GdQlAAAAAElFTkSuQmCC", "118": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFAAAA6qVsUmB8vWxKwMvci5u0PyYxCrNPPgAAAAF0Uk5TAEDm2GYAAABRSURBVAjXY2BgSwOCBAYGhjQwYAAKuCSbuQCF0lLCks1S3dIY0lxDFYVCQ8AMZSN0BlQKphiuHWhgshnIQKAQkAGygoEt2QxMIzEgloPtBxIAJXkf4UhXGl8AAAAASUVORK5CYII=", "31": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFwMvcUmB8i5u06qVsJitEHgKsGAAAAEdJREFUCNdjcGFQAgIGFwYXJTAAMhgEgYABmaEEYmCXYmJQACIgQwHEYAIyFEHGCAEZjiCGiAuDiQsYODMYQxjGDMZQgMkAAM75E7qaBXe8AAAAAElFTkSuQmCC", "10": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFwMvci5u0UmB8vWxKJitEix1hjQAAADtJREFUCNdjUHKBAAYRFxcnFRcXJQYXR0EmBUEBIEMIxhCEqkEwGKAMJyV0BnGKnV2MgQCkxhjKcAYzAJVlG7iU/YSiAAAAAElFTkSuQmCC", "29": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRF/udhwMvc/q40/3Bt6EU3UmB8PyYxi5u0yr2gZwAAAGNJREFUCNdNjNEJgDAQQwu6wM1gBxAL/ZZS3OB0gLbZoNz6RgXpT3gkjzhFLLFAnSHl7GEjbDkvBMUawkRHPhBOewjzKCuqT8fzcyJ5NE4dlQWBFVqnowownHQzu4Q/L5j9cAN6cit8/+2ySQAAAABJRU5ErkJggg==", "106": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAvWxKi5u0wMvcPyYxalGRewAAAAF0Uk5TAEDm2GYAAAAzSURBVAjXY2BgYHBxYQADFhcXBzDDxckEIuSiZEwRw0kFyjCGiTiKQBgsjiIOqJZCnAEAuIANBNNmZdIAAAAASUVORK5CYII=", "111": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAB5QTFRFAAAAqrfM6EU3i5u0djs298KC6qVswMvcvWxKPyYxmozc2AAAAAF0Uk5TAEDm2GYAAABkSURBVAjXTc2xEYAwCAXQtGyiG+gIDpAVvLO0Ik4gdClyyt9WSBp/9Q4OfkoE1BQBhggiQMDaEMFE1Jdku0cdjwJ2xCSgHTOmQNOXbYt/umLxK2RhLhk/iDFf0nGf6vBSLl7xAcJoOIwl8JTnAAAAAElFTkSuQmCC", "126": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRFAAAAi5u0Q+GzwMvc6qVsvWxKJZVqPyYx9cOsYwAAAAF0Uk5TAEDm2GYAAAAxSURBVAjXY2DAAtjLywvAjHIggDBCXNEZxsZQRqE4hMFepF6AxihLx8mAWcEAtQEKANqfEYmTtBjXAAAAAElFTkSuQmCC", "13": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAlQTFRFwMvcPyYxdjs2IEVGgwAAABBJREFUCNdjWLVqKSsD9QgACzsf4d0g9YwAAAAASUVORK5CYII=", "4": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFvWxK6qVsUmB8i5u0wMvcdjs2PyYxS8DnkAAAAEhJREFUCNdjEEwDgkRBQQaxNAhgSEtxcXEBM0yADCBGYigbGxurwBhAjMRQggCGNJe0YGPj0FAoI4AVxAgFAQgjgCEUTQSZAQD+CiRl95l3hgAAAABJRU5ErkJggg==", "40": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAlQTFRFwMvcUmB8i5u0Ok/JaAAAACJJREFUCNdjCAUChlXLGGYBiVVQAizGCRRkWAnkQwgi1QEA9oIgs6OaBGAAAAAASUVORK5CYII=", "102": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFAAAAi5u0wMvcPyYxKaGK/AAAAAF0Uk5TAEDm2GYAAAAsSURBVAjXY2BABcz//x+AEreWA4lX0TDi6WoY8Wv9AQaG//+Bqu3/oGlnAACYLBYin5F1SQAAAABJRU5ErkJggg==", "54": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAA5O35wMvci5u0UmB8JitEVPxIMAAAAAF0Uk5TAEDm2GYAAABESURBVAjXY2ANBYMAhlAoYAh1UgICFSBDxQUInFAYIBUoDLhiYzAAMlzAAFlEGUQbARmhLq4hLkArWEOFRQMNgZZiAABquR0Xc/z8DQAAAABJRU5ErkJggg==", "5": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFvWxK6qVsUmB8i5u0wMvcdjs2PyYxS8DnkAAAAEtJREFUCNdjEEwDgkRBQYY0CEhkSEtxcXEBshhcTIAMExdkhrKxsbEKkGEMYigbIzGUICCNITQ01Ng0DagmgIEVzggNBTFCQQA/AwD31iQTgF9wtwAAAABJRU5ErkJggg==", "52": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAABGdBTUEAALGPC/xhBQAAAAZQTFRF6qVsz4JUJM9nLwAAAB9JREFUCNdj+P+fAY74/zMw/mdgqGdgsAcjeRjihyMAsmoLnS/gwwQAAAAASUVORK5CYII=", "105": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAUmB8vWxKwMvci5u0PyYxXV72twAAAAF0Uk5TAEDm2GYAAABBSURBVAjXY2AAgtAABjBgDQ2FMEKDQ6ECJqFQARcowwTGcMFgBIpCdYW4QgwMDXGFShkbQxlBqmgMoJ1Q28GWAwBwfhA4tin8AAAAAABJRU5ErkJggg==", "64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAWmmIwMvci5u0JitEz9Hs1QAAAAF0Uk5TAEDm2GYAAAA/SURBVAjXY2BAABYXFwcwwwUIILSSEojFAmE4MLA4KRkbK6kgM5yNgcAEmeHiIigINsnFxdgYahCQwUCAAQEA7QsRI05T6lEAAAAASUVORK5CYII=", "61": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAABGdBTUEAALGPC/xhBQAAAAZQTFRFAAAA////pdmf3QAAAAF0Uk5TAEDm2GYAAAAtSURBVAjXY2BgYLD/w1D/jyGBjSHdjCGvjCHnGUPmMYbkaQguUAqoAKiMgQEAS8cOC5N/YsMAAAAASUVORK5CYII=", "18": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFwMvcUmB8PyYxi5u0RYx4XAAAAE9JREFUCNdjqJoatpbh39a4/Qz/5n8DEvv/7WeIm/9tKwPf/n8boGKtQfsZqjbwrWX4Jf9lPcMv+z/rIawq+z9AMf4Paxh+HWAGiv3/vx4A4BssE2ueQEMAAAAASUVORK5CYII=", "129": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAdjs26qVs0XbQvWxKPyYxHySODwAAAAF0Uk5TAEDm2GYAAAA5SURBVAjXY2BgYAgNZQAD1tDQAAgj2BTCCA02hciFOpugM1ScoIxAUQiDNcQ1ABcjSBWnFMxSiDMAXQUPNimgKdAAAAAASUVORK5CYII=", "79": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAvWxKwMvci5u06qVsPyYxqfHTIgAAAAF0Uk5TAEDm2GYAAAA6SURBVAjXY2BgYA0NDWANZWAIhQAQ38UFiBlYg5TAgIE12BgMQAwXF2NjFyQ1eBh4tQsKAjHCUpgzAAfjHHImmRoAAAAAAElFTkSuQmCC", "104": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAi5u0vWxKwMvcPyYxo/wp1QAAAAF0Uk5TAEDm2GYAAAA1SURBVAjXY2BgYGBxYYAAFxcHMM3iYgJlOFPEcHEUgRjtYmwMZTipQBgsTiowu6CWAm0HEgAihguh21ObkAAAAABJRU5ErkJggg==", "35": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFwMvcdjs2vWxKi5u0UmB8PyYxJitEKUmSGgAAAFxJREFUCNdjSIMAFwaXtLQUt7S0ZAYXZmMWB2OzNBAjNDTUOY0hLS0VyAgGMdIClUTBjNQkQdUAsEiQoGqIG1QEzEgLMlSFqoEy0oICoYrhatIUYYwkqJq0NCADAFOzKK74uQQUAAAAAElFTkSuQmCC", "20": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFJZVqaf/UQ+GzwMvcUmB8i5u0JitE4eGlPgAAAGlJREFUCNctjcENhDAMBP2iBDpIBVGoICkAkvWbu+DtvwQWxLxG8o5s9cMAtJwHJBQS50sYOXvZSKOjF4RkeHi0R/CEEvo2Qxsd1Hgo93MJ5WA/UiGsMvbkV7Xs/K2c2TD4Xwk9HThSA24IiSpqrqdgYgAAAABJRU5ErkJggg==", "42": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAlQTFRFz4JUwMvc6qVs8jebrAAAADBJREFUCNdjWAUEDEhE2NQoCNEEJphA3FVAYmlYAxeQACpZGja1CU6sYljA1IBkAABxwiKiQj8X7AAAAABJRU5ErkJggg==", "91": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABtQTFRFAAAAJitE6qVsWmmIi5u0djs2vWxKwMvcPyYxuukpbQAAAAF0Uk5TAEDm2GYAAABSSURBVAjXY+DoAIMGhg4oYOhIcUtLS3EDMtKLlJTUy8Ai5eVgkfLiQnHzcmRGREd5eUcrmAEEKIwMEKMNmZEGBkCGaSgQBAMZZSCBdJCBYNABAA9EOaUJBSvcAAAAAElFTkSuQmCC", "73": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAdjs2vWxK6qVsPyYx9xQEvQAAAAF0Uk5TAEDm2GYAAAAwSURBVAjXY2AgDbgAAYhmATEcQAwnY2MVMMPZ2NgEB8NJSQmixkVQEKpLxQksgg4ARO8JxF1kXlsAAAAASUVORK5CYII=", "32": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRFaf/UUmB8JZVqQ+GzwMvci5u06qVsJitE1BCYUQAAAFZJREFUCNdjKHcJDTYNdSlnKA8FMUKBDBclY2MlFzCD2QDMCDU2YDYGSxkDgQsyw9UlBIiAjBAQwxXICAwFAlEgoxDEEC9nSC8HgzKGNAgjjSENCjAZAF8jK8SDFP/+AAAAAElFTkSuQmCC", "125": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAA6qVsvWxKwMvci5u0PyYx4pm7/gAAAAF0Uk5TAEDm2GYAAAAxSURBVAjXY2DAAlhDQwPAjFAggDAUhdAZxsZQRogrhMEabBqAxghxxcmAWcEAtQEKAG/MDI5n2kr7AAAAAElFTkSuQmCC", "88": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFAAAAJitEdjs24ZplvWxK98KCPyYxJ/6HCgAAAAF0Uk5TAEDm2GYAAABnSURBVAjXHc3RDYQwDAPQfN0CiA1OXQC6AHI7ANT3jXrF+49Aky8/WZFjZibdZpGS50cDUakDySt9gSOAhhYoJANcuQbysi2Bf+YunzmBMof0UOJP8za3ctExgOpQTz3Nt/NnHVX3CzMJIOPp/rZKAAAAAElFTkSuQmCC", "28": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFwMvcJitEUmB8i5u0DR/uhgAAADRJREFUCNdjWAUEDP9/M7wHEv+hBFiMDyjI8A/IhxArU2OzGP66BtYjESsYGLRA6j4g1AEAUwMtw2fA9ykAAAAASUVORK5CYII=", "82": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAi5u06qVsvWxKwMvcPyYx1NREsgAAAAF0Uk5TAEDm2GYAAABbSURBVAjXVY2xDYAwDAQtoYzAAjYDoDgsQD49EXj/VbCTBr46/RVHROYjXwq4HOwBWlwGVViYylzcpX4yb+sEmQBmDChADbhrlnJ8n65Z9KcsVMQs1MgvWXaiFxj/GJSMVjWzAAAAAElFTkSuQmCC", "57": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFPyYxwMvcUmB8i5u0A2AS2QAAACZJREFUCNdjYN21ahUD6+7Q90Di/3sGPjABFtv/OxRE/IcSxKkDAMw5JlE7jsSVAAAAAElFTkSuQmCC", "2": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFUmB8PyYxi5u0wMvcdjs2SCwPBQAAADJJREFUCNdjcIECBkoZgkAgAmQIQgGDoLCxsTGIYawMZAAxEoNJSUmJGchQAjGAGM4AAFXEGTF6hXfuAAAAAElFTkSuQmCC", "80": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABJQTFRFAAAAvWxKwMvci5u06qVsPyYxqfHTIgAAAAF0Uk5TAEDm2GYAAABASURBVAjXYwgNYA0NDWBgYAiFAAYGl9BQFxeQmBIYqAYwGIOBaQCDi7GxiwuYAVODh4FHu2BoqKAgSA3cUpgzAP/mH7ojKF6KAAAAAElFTkSuQmCC", "3": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAxQTFRFi5u0wMvcPyYxdjs2+rEOaAAAAB1JREFUCNdj+A8EDMQSq/aDiPVAIgREhMIJVhgBAIn4OQQsndsDAAAAAElFTkSuQmCC", "17": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFUmB8i5u0wMvcPyYxdjs2CtrBhgAAADRJREFUCNelxjEBACAMA7ANB52ESqAW8K+J9QF+ciWWiYrfyDo6mSQFBatTfJMARgdO4mYDr9cXBZcPJvgAAAAASUVORK5CYII=", "83": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAvWxK6qVswMvcPyYxKSII8QAAAAF0Uk5TAEDm2GYAAAArSURBVAjXY3BRNFZSMhZyYXARNBYEIiDDxRiMGFggDAcEAy6F0IXJoMgcACsrGaN7uPF1AAAAAElFTkSuQmCC", "11": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFwMvci5u0UmB8vWxKJitEix1hjQAAAD9JREFUCNdjcIEAJQYlFxcnFRcXRwYlRkEmBUERFyhD0YUBokQQg8EAYyipoDPwKzYGAhcTKMMYpAbMMBF0AQB/NRsTYP4+rQAAAABJRU5ErkJggg==", "97": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABtQTFRFAAAAJitEvWxK4Zpl98KCUmB8wMvci5u0PyYxmtG2YwAAAAF0Uk5TAEDm2GYAAABkSURBVAjXRc0xDoAgDIXhju5wAid3jiBXULmAyK6hKzER37FtMcZ/6Te0KdEfpCKzU0BRmbMCt9SwfGCpYTfONBzW2xej89DrBNRUCHWLMScQJl5nnhRn3w8KXOEK8qyTTdkvD8k/K13Jrxc5AAAAAElFTkSuQmCC", "81": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFAAAAvWxK6qVswMvcPyYxKSII8QAAAAF0Uk5TAEDm2GYAAAArSURBVAjXY3BRNFZSMhZyYXARNBYEIiDDxRiMGFggDAcEAy6F0IXJoMgcACsrGaN7uPF1AAAAAElFTkSuQmCC", "119": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABVQTFRFAAAAUmB86qVswMvci5u0vWxKPyYx28hgVAAAAAF0Uk5TAEDm2GYAAABBSURBVAjXY2BgS0tLYwABIJ2WAKTZ0oxTw0CMtGQ3KMPERUgNyhANQ2dApWCK4dqBBkIZbDAGAxsmA2IpWDmQAACU3BjlSsRb+wAAAABJRU5ErkJggg==", "16": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFUmB8i5u0wMvcPyYxdjs2CtrBhgAAAC9JREFUCNdjMFYydgEBBsoZxsYmIIagMRgwGAspKSnBGUCMxGAUFBRkgjGAGM4AAKebFwig5D4AAAAAAElFTkSuQmCC", "6": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFUmB8i5u0wMvcPyYxdjs2CtrBhgAAAEBJREFUCNd9y8ERgDAMA0HTAUoHqAWlg6T/mpBtZuDFvfZzsZ/iD0tuGqoSg7wKdF+ooRds0KgrAWegAeMATuEG3JEXx35HyukAAAAASUVORK5CYII=", "30": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAA9QTFRFUmB8i5u0z4JUPyYx6qVsyD0t7gAAACZJREFUCNdjUDIWBAJjJQYlY0ZBQQEwAwyADGUQbaTE4AIFdGAAAKJ6HicbrqFaAAAAAElFTkSuQmCC", "116": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRFAAAAi5u0wMvcvWxK6qVsdeP/AJnbPyYxsxxfjgAAAAF0Uk5TAEDm2GYAAAA8SURBVAjXY2DAAtjLywvAjHIggDBMnNEZheJQRpF6OURTaChYG3tZaGg6hJGWhsYoT0uDGA03GW4XBAAAu/MWyHy8dtcAAAAASUVORK5CYII=", "128": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAABhQTFRFAAAAi5u0deP/wMvc6qVsvWxKAJnbPyYx4mURQAAAAAF0Uk5TAEDm2GYAAAAxSURBVAjXY2DAAtjLywvAjHIggDBCXNEZxsZQRqE4hMFepF6AxihLx8mAWcEAtQEKANqfEYmTtBjXAAAAAElFTkSuQmCC"};</script>
+<script>
+(function(){
+  const TILE_SRC = window.__RLT || {};
+  const game = window.RL.makeGame();
+  const S = game.state;
+  // 타일 인덱스 매핑 (라이브 보정 가능)
+  const T = {
+    floor:1, floorAlt:[0,2,3], wall:58, wallAlt:[57,59],
+    stairs:8, player:96, chestClosed:81, chestOpen:82,
+    potion:115, potionBig:129,
+  };
+  const TS=16, SCALE=2.4, DTS=Math.round(TS*SCALE); // 표시 타일 크기
+
+  const cv=document.getElementById('cv'), ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const IMG={}; let loaded=0, total=0;
+  function loadTiles(cb){
+    const keys=Object.keys(TILE_SRC); total=keys.length;
+    if(!total){ cb(); return; }
+    keys.forEach(k=>{ const im=new Image(); im.onload=im.onerror=()=>{ loaded++; if(loaded>=total)cb(); }; im.src=TILE_SRC[k]; IMG[k]=im; });
+  }
+  function tile(idx){ return IMG[idx]; }
+
+  let cw=0,ch=0;
+  function resize(){ cw=cv.clientWidth; ch=cv.clientHeight; cv.width=cw; cv.height=ch; ctx.imageSmoothingEnabled=false; }
+  addEventListener('resize',resize);
+
+  function hashCell(x,y){ let h=(x*73856093)^(y*19349663); h=(h<0?-h:h); return h; }
+  function floorTile(x,y){ const h=hashCell(x,y)%11; return h===0?T.floorAlt[0]:(h===3?T.floorAlt[1]:(h===7?T.floorAlt[2]:T.floor)); }
+  function wallTile(x,y){ const h=hashCell(x,y)%7; return h===0?T.wallAlt[0]:(h===4?T.wallAlt[1]:T.wall); }
+
+  function draw(){
+    ctx.fillStyle='#0a0810'; ctx.fillRect(0,0,cw,ch);
+    if(!S.map){ return; }
+    const camX=S.player.x*DTS - cw/2 + DTS/2;
+    const camY=S.player.y*DTS - ch/2 + DTS/2;
+    const x0=Math.max(0,Math.floor(camX/DTS)-1), x1=Math.min(S.W-1,Math.floor((camX+cw)/DTS)+1);
+    const y0=Math.max(0,Math.floor(camY/DTS)-1), y1=Math.min(S.H-1,Math.floor((camY+ch)/DTS)+1);
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+      if(!S.seen[y][x]) continue;
+      const sx=Math.round(x*DTS-camX), sy=Math.round(y*DTS-camY);
+      const isW=S.map[y][x]==='wall';
+      const im=tile(isW?wallTile(x,y):floorTile(x,y));
+      if(im&&im.complete) ctx.drawImage(im,sx,sy,DTS,DTS);
+      else { ctx.fillStyle=isW?'#2a2236':'#171022'; ctx.fillRect(sx,sy,DTS,DTS); }
+      if(!S.vis[y][x]){ ctx.fillStyle='rgba(6,4,12,0.58)'; ctx.fillRect(sx,sy,DTS,DTS); }
+    }
+    // 계단
+    drawAt(T.stairs, S.stairs.x, S.stairs.y, camX, camY, true);
+    // 아이템
+    for(const it of S.items){ if(!S.seen[it.y][it.x])continue; if(!S.vis[it.y][it.x])continue;
+      let idx=T.chestClosed;
+      if(it.kind==='potion')idx=it.heal>=18?T.potionBig:T.potion;
+      else if(it.kind==='weapon')idx=window.RL.WEAPONS[it.key].tile;
+      else if(it.kind==='armor')idx=window.RL.ARMORS[it.key].tile;
+      else if(it.kind==='chest')idx=T.chestClosed;
+      drawAt(idx,it.x,it.y,camX,camY);
+    }
+    // 몬스터
+    for(const m of S.monsters){ if(!S.vis[m.y][m.x])continue;
+      const sx=Math.round(m.x*DTS-camX), sy=Math.round(m.y*DTS-camY);
+      const im=tile(m.tile);
+      if(m.hit>0){ ctx.save(); ctx.globalAlpha=0.9; }
+      if(im&&im.complete) ctx.drawImage(im,sx,sy,DTS,DTS);
+      if(m.hit>0){ ctx.fillStyle='rgba(255,80,80,0.45)'; ctx.fillRect(sx,sy,DTS,DTS); ctx.restore(); }
+      // hp 바
+      if(m.hp<m.maxhp){ const bw=DTS-6; ctx.fillStyle='#400'; ctx.fillRect(sx+3,sy-3,bw,3); ctx.fillStyle='#e0445a'; ctx.fillRect(sx+3,sy-3,bw*Math.max(0,m.hp/m.maxhp),3); }
+    }
+    // 플레이어
+    drawAt(T.player, S.player.x, S.player.y, camX, camY);
+  }
+  function drawAt(idx,gx,gy,camX,camY,dim){
+    const sx=Math.round(gx*DTS-camX), sy=Math.round(gy*DTS-camY);
+    const im=tile(idx); if(im&&im.complete) ctx.drawImage(im,sx,sy,DTS,DTS);
+  }
+
+  function refreshHUD(){
+    document.getElementById('sDepth').textContent=S.depth;
+    document.getElementById('sLvl').textContent=S.player.lvl;
+    document.getElementById('sAtk').textContent=game.pAtk();
+    document.getElementById('sDef').textContent=game.pDef();
+    document.getElementById('sGold').textContent=S.player.gold;
+    document.getElementById('sPot').textContent=S.player.potions;
+    document.getElementById('aPotN').textContent=S.player.potions;
+    document.getElementById('hpbar').style.width=(S.player.hp/S.player.maxhp*100)+'%';
+    document.getElementById('hptxt').textContent=S.player.hp+' / '+S.player.maxhp;
+    const lg=document.getElementById('log'); lg.innerHTML=S.log.slice(-5).map(t=>'<div>'+t+'</div>').join('');
+  }
+  function frame(){ draw(); requestAnimationFrame(frame); }
+
+  // ---- 입력 ----
+  function act(fn){ if(S.state!=='play')return; fn(); refreshHUD(); if(S.state==='dead') showDead(); }
+  function move(dx,dy){ act(()=>game.tryMove(dx,dy)); }
+  addEventListener('keydown',e=>{
+    const k=e.key.toLowerCase();
+    if(['arrowup','w'].includes(k)){ move(0,-1); e.preventDefault(); }
+    else if(['arrowdown','s'].includes(k)){ move(0,1); e.preventDefault(); }
+    else if(['arrowleft','a'].includes(k)){ move(-1,0); e.preventDefault(); }
+    else if(['arrowright','d'].includes(k)){ move(1,0); e.preventDefault(); }
+    else if(k==='q'){ act(()=>game.usePotion()); }
+    else if(k===' '){ act(()=>game.wait()); e.preventDefault(); }
+    else if(k==='>'||k==='enter'||k==='.'){ act(()=>game.descend()); }
+  });
+  document.querySelectorAll('#pad .pad-btn[data-dir]').forEach(b=>{
+    b.addEventListener('click',()=>{ const d=b.dataset.dir; move(d==='left'?-1:d==='right'?1:0, d==='up'?-1:d==='down'?1:0); });
+  });
+  document.getElementById('aPot').addEventListener('click',()=>act(()=>game.usePotion()));
+  document.getElementById('aWait').addEventListener('click',()=>act(()=>game.wait()));
+  document.getElementById('aDesc').addEventListener('click',()=>act(()=>game.descend()));
+
+  // ---- 패널 ----
+  function showDead(){
+    document.getElementById('deadDepth').textContent='지하 '+S.depth+'층까지 도달';
+    document.getElementById('deadStat').innerHTML='레벨 '+S.player.lvl+' · 처치 '+S.player.kills+' · 금화 '+S.player.gold;
+    try{ const b=Math.max(S.depth, parseInt(localStorage.getItem('dl_best')||'0',10)); localStorage.setItem('dl_best',b); }catch(e){}
+    document.getElementById('dead').classList.remove('hidden');
+  }
+  function start(){
+    document.getElementById('menu').classList.add('hidden');
+    document.getElementById('dead').classList.add('hidden');
+    game.newGame(); resize(); refreshHUD();
+  }
+  document.getElementById('startBtn').addEventListener('click',start);
+  document.getElementById('retryBtn').addEventListener('click',start);
+
+  loadTiles(()=>{
+    document.getElementById('loading').style.display='none';
+    let best='-'; try{ best=localStorage.getItem('dl_best')||'-'; }catch(e){}
+    document.getElementById('bestDepth').textContent=best;
+    document.getElementById('menu').classList.remove('hidden');
+    resize(); requestAnimationFrame(frame);
+    // 테스트 훅
+    window.__dl={ game, S, move:(dx,dy)=>{game.tryMove(dx,dy);refreshHUD();}, descend:()=>{game.descend();refreshHUD();},
+      potion:()=>{game.usePotion();refreshHUD();}, state:()=>({depth:S.depth,hp:S.player.hp,lvl:S.player.lvl,monsters:S.monsters.length,state:S.state,seen:S.seen.flat().filter(Boolean).length}) };
+  });
+})();
+</script>
+</body>
+</html>
