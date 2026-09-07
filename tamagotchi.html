@@ -117,7 +117,7 @@ const SHELL_PRICE = { shell_pink1: 0, shell_pink2: 30, shell_dog: 40, shell_chic
 
 /* ================= 메타 저장 (펫 리셋에도 유지) ================= */
 const META_KEY = "tamapixel_meta";
-let meta = { unlocked: ["shell_pink1"], dex: {}, shiny: {}, lastGift: "" };
+let meta = { unlocked: ["shell_pink1"], dex: {}, shiny: {}, lastGift: "", best: {} };
 function loadMeta() {
   try {
     const d = JSON.parse(localStorage.getItem(META_KEY));
@@ -126,6 +126,7 @@ function loadMeta() {
   meta.dex = meta.dex || {};
   meta.shiny = meta.shiny || {};
   meta.lastGift = meta.lastGift || "";
+  meta.best = meta.best || {};
 }
 function saveMeta() { localStorage.setItem(META_KEY, JSON.stringify(meta)); }
 function metaDexAdd(d, shiny) {
@@ -224,6 +225,56 @@ const FOOD_PAGES = [
   ]},
 ];
 const FOOD_URL = id => ASSET(`음식v2/${id}.png`);
+const FOOD_NAME = { bread:"빵", burger:"버거", pizza:"피자", hotdog:"핫도그", fries:"감자튀김", egg:"계란후라이",
+  apple:"사과", banana:"바나나", cherry:"체리", orange:"오렌지", croissant:"크루아상", milk:"우유",
+  donut:"도넛", cupcake:"컵케이크", icecream:"아이스크림", shortcake:"쇼트케이크", medicine:"약", vitamin:"비타민" };
+const FOOD_ALL = FOOD_PAGES.flatMap(pg => pg.items).filter(f => !f.care);
+const sgn = v => (v > 0 ? "+" : "") + v;
+function foodEffectText(f) {
+  if (f.care === "cure") return "병 치료 (아플 때만)";
+  if (f.care === "vitamin") return "청결+15 · 6시간 병 예방";
+  const parts = [];
+  if (f.hunger) parts.push("포만" + sgn(f.hunger));
+  if (f.happy) parts.push("행복" + sgn(f.happy));
+  if (f.energy) parts.push("기력" + sgn(f.energy));
+  if (f.clean) parts.push("청결" + sgn(f.clean));
+  return parts.join(" ");
+}
+
+/* ================= 퀘스트 ================= */
+function genQuest() {
+  const r = Math.random();
+  if (r < 0.35) {
+    const f = FOOD_ALL[Math.floor(Math.random() * FOOD_ALL.length)];
+    return { kind: "feed", foodId: f.id, n: 1, cur: 0, reward: 20 + f.price, text: FOOD_NAME[f.id] + " 먹이기" };
+  }
+  if (r < 0.55) return { kind: "play", n: 2, cur: 0, reward: 25, text: "미니게임 2번 하기" };
+  if (r < 0.7)  return { kind: "score", game: "catch", target: 8, n: 1, cur: 0, reward: 30, text: "베리캐치 8점 넘기기" };
+  if (r < 0.85) return { kind: "score", game: "whack", target: 12, n: 1, cur: 0, reward: 30, text: "디그다 12마리 잡기" };
+  if (r < 0.93) return { kind: "bath", n: 1, cur: 0, reward: 15, text: "목욕시키기" };
+  return { kind: "sleep", n: 1, cur: 0, reward: 15, text: "재우기 (SLEEP)" };
+}
+function questEvent(kind, data = {}) {
+  if (!pet || !pet.quest) return;
+  const q = pet.quest;
+  let hit = false;
+  if (q.kind === kind) {
+    if (kind === "feed") hit = data.foodId === q.foodId;
+    else if (kind === "score") hit = data.game === q.game && data.score >= q.target;
+    else hit = true;
+  }
+  if (!hit) return;
+  q.cur += 1;
+  if (q.cur >= q.n) {
+    pet.coins += q.reward; pet.xp += 15;
+    banner = { text: "퀘스트 완료! +" + q.reward + "c ✦", until: performance.now() + 3500 };
+    sfx.hatch();
+    pet.quest = null;
+  } else {
+    banner = { text: "퀘스트 진행 " + q.cur + "/" + q.n, until: performance.now() + 2000 };
+  }
+  save();
+}
 
 /* ================= 픽셀 아이콘 ================= */
 const PAL = { k: INK, w: WHITE, p: PINK, P: PINK2, o: ORANGE, g: GREEN, l: LAV, r: RED,
@@ -372,7 +423,7 @@ let shellIdx = 0;
 let scene = "boot";
 let eggSel = 4;
 let menuFlash = { id: null, t: 0 };
-let foodOpen = false, foodPage = 0, infoOpen = false, resetArm = 0;
+let foodOpen = false, foodPage = 0, foodSel = -1, infoOpen = false, resetArm = 0;
 let anim = null, evo = null, hatchFx = null, banner = null, mini = null, visitor = null;
 let dexOpen = false, dexPage = 0;
 let hearts = [], floats = [], sparkles = [];
@@ -385,7 +436,7 @@ const basePet = () => ({
   name: "", line: null, stage: 0, dex: 0, shiny: false,
   hunger: 80, happy: 80, energy: 80, clean: 100,
   xp: 0, coins: 20, cnt: { feed: 0, play: 0, bath: 0 },
-  poops: [], sleeping: false, sick: false, sickAt: 0, immuneUntil: 0,
+  poops: [], sleeping: false, sick: false, sickAt: 0, immuneUntil: 0, quest: null,
   born: Date.now(), last: Date.now(),
 });
 let pet = null;
@@ -413,6 +464,7 @@ function load() {
     if (pet.shiny == null) pet.shiny = false;
     if (pet.sick == null) pet.sick = false;
     if (pet.immuneUntil == null) pet.immuneUntil = 0;
+    if (pet.quest === undefined) pet.quest = null;
     if (pet.mode === "pet" && pet.dex) metaDexAdd(pet.dex, pet.shiny);
     return true;
   } catch (e) {}
@@ -458,9 +510,10 @@ async function spawnVisitor() {
   try {
     const img = await loadImg(npcURL(id));
     if (visitor || !pet || pet.mode !== "pet" || pet.sleeping) return;
+    const quest = (!pet.quest && Math.random() < 0.6) ? genQuest() : null;
     visitor = { img, t0: performance.now(), leaveAt: performance.now() + 25000,
-                gifted: false, leaving: false, leaveT: 0 };
-    banner = { text: "친구가 놀러왔다! (인사해보자)", until: performance.now() + 3000 };
+                gifted: false, leaving: false, leaveT: 0, quest };
+    banner = { text: quest ? "친구가 부탁이 있대! (탭해서 듣기)" : "친구가 놀러왔다! (인사해보자)", until: performance.now() + 3000 };
     sfx.ok();
   } catch (e) {}
 }
@@ -471,6 +524,15 @@ function visitorX(now) {
   return vx;
 }
 function greetVisitor(px, py) {
+  if (visitor.quest) {
+    pet.quest = Object.assign({}, visitor.quest, { until: Date.now() + 24 * 3600e3 });
+    visitor.gifted = true; visitor.leaving = true; visitor.leaveT = performance.now();
+    hearts.push({ x: px - 3, y: py - 14, t: performance.now() });
+    sfx.ok();
+    banner = { text: "퀘스트: " + pet.quest.text + " (보상 " + pet.quest.reward + "c)", until: performance.now() + 4000 };
+    save();
+    return;
+  }
   const gift = 3 + Math.floor(Math.random() * 6);
   pet.coins += gift;
   pet.happy = clamp(pet.happy + 6, 0, 100);
@@ -560,45 +622,261 @@ function finishHatch() {
   toName();
 }
 
-/* ================= 미니게임: 베리 캐치 ================= */
-function startMini() {
-  mini = { score: 0, t0: performance.now(), dur: 30000, items: [], nextSpawn: 0,
-           petX: 80, targetX: 80, over: false };
-  foodOpen = false; infoOpen = false;
+/* ================= 미니게임 (4종) ================= */
+const GAMES = [
+  { id: "catch",  name: "베리 캐치",   desc: "똥 먹으면 끝!" },
+  { id: "whack",  name: "디그다 잡기", desc: "30초 두더지" },
+  { id: "hilo",   name: "하이 & 로우", desc: "다음 카드는?" },
+  { id: "memory", name: "기억력 매치", desc: "같은 그림 찾기" },
+];
+const gameRect = i => ({ x: 8 + (i % 2) * 76, y: 20 + Math.floor(i / 2) * 56, w: 68, h: 52 });
+const MINI_FOODS = ["apple", "burger", "donut", "cherry", "pizza", "banana", "cupcake", "icecream"];
+function addFloat(x, y, txt, color) { floats.push({ x, y, txt, color, t: performance.now() }); }
+
+function startGame(id) {
+  const now = performance.now();
+  mini = { id, score: 0, t0: now, over: false, reward: 0, msg: "" };
+  floats = [];
+  if (id === "catch") Object.assign(mini, { items: [], nextSpawn: now + 600, petX: 80, targetX: 80 });
+  if (id === "whack") Object.assign(mini, { dur: 30000, mole: null, nextPop: now + 500 });
+  if (id === "hilo")  Object.assign(mini, { cur: 1 + Math.floor(Math.random() * 9), streak: 0, pot: 0, round: 0, last: "", lock: 0 });
+  if (id === "memory") {
+    const pick = MINI_FOODS.slice().sort(() => Math.random() - 0.5).slice(0, 6);
+    const deck = pick.concat(pick).sort(() => Math.random() - 0.5);
+    Object.assign(mini, { cards: deck.map(f => ({ f, up: false, done: false })), open: [], moves: 0, lockUntil: 0 });
+    for (const f of pick) getImg(FOOD_URL(f));
+  }
   scene = "mini";
   sfx.ok();
 }
+function finishGame(reward, msg) {
+  mini.over = true; mini.overAt = performance.now(); mini.reward = reward; mini.msg = msg || "";
+  const best = meta.best[mini.id] || 0;
+  if (mini.score > best) { meta.best[mini.id] = mini.score; mini.newBest = true; saveMeta(); }
+  sfx.hatch();
+}
 function endMini() {
-  pet.coins += mini.score;
+  pet.coins += mini.reward;
   pet.happy = clamp(pet.happy + 14, 0, 100);
   pet.energy = clamp(pet.energy - 8, 0, 100);
   pet.xp += 5; pet.cnt.play += 1;
+  const gid = mini.id, sc = mini.score;
   mini = null; scene = "main";
   sfx.coin(); save();
+  questEvent("play");
+  questEvent("score", { game: gid, score: sc });
 }
-function addFloat(x, y, txt, color) { floats.push({ x, y, txt, color, t: performance.now() }); }
-const MINI_FOODS = ["apple", "burger", "donut", "cherry", "pizza", "banana", "cupcake", "icecream"];
-function updateMini(now, dt) {
-  if (mini.over) return;
+
+/* ---- 1) 베리 캐치: 무제한, 똥 먹으면 종료, 난이도 상승 ---- */
+function updateCatch(now, dt) {
   const el = now - mini.t0;
-  if (el >= mini.dur) { mini.over = true; sfx.hatch(); return; }
   if (now >= mini.nextSpawn) {
-    const isPoop = Math.random() < 0.22;
+    const poopRate = Math.min(0.45, 0.2 + el / 1000 * 0.006);
+    const isPoop = Math.random() < poopRate;
     const fid = MINI_FOODS[Math.floor(Math.random() * MINI_FOODS.length)];
-    mini.items.push({ x: 14 + Math.random() * 132, y: 18, vy: 30 + el / 1000 * 3,
+    mini.items.push({ x: 14 + Math.random() * 132, y: 18, vy: Math.min(170, 40 + el / 1000 * 4),
+                      sway: Math.random() < 0.35 ? (Math.random() < 0.5 ? -1 : 1) * (10 + Math.random() * 20) : 0,
                       poop: isPoop, img: isPoop ? null : getImg(FOOD_URL(fid)) });
-    mini.nextSpawn = now + Math.max(380, 950 - el / 45);
+    mini.nextSpawn = now + Math.max(260, 900 - el / 60);
   }
   mini.petX += (mini.targetX - mini.petX) * Math.min(1, dt * 10);
   for (const it of mini.items) {
     it.y += it.vy * dt;
+    if (it.sway) it.x = clamp(it.x + it.sway * dt, 10, 150);
     if (!it.hit && it.y > 116 && it.y < 142 && Math.abs(it.x - mini.petX) < 20) {
       it.hit = true;
-      if (it.poop) { mini.score = Math.max(0, mini.score - 2); sfx.buzz(); addFloat(it.x - 6, it.y - 10, "-2", RED); }
-      else { mini.score += 1; sfx.coin(); addFloat(it.x - 4, it.y - 10, "+1", GOLD); }
+      if (it.poop) { sfx.buzz(); finishGame(Math.min(mini.score, 40), "으악! 똥을 먹었다..."); return; }
+      mini.score += 1; sfx.coin(); addFloat(it.x - 4, it.y - 10, "+1", GOLD);
     }
   }
   mini.items = mini.items.filter(it => !it.hit && it.y < 152);
+}
+function drawCatch(now) {
+  ctx.fillStyle = GREEN; ctx.fillRect(0, 140, LW, 10);
+  ctx.fillStyle = INK; ctx.fillRect(0, 139, LW, 1);
+  for (const it of mini.items) {
+    if (it.poop) drawMap(ctx, POOP, Math.round(it.x - 5), Math.round(it.y - 5));
+    else if (it.img) drawHiImg(it.img, it.x, it.y + 8, 1);
+  }
+  if (petAnim) {
+    const m = petAnim.m;
+    drawHiFrame(petAnim.img, m, animIndex(m, now, petAnim.t0), mini.petX, 140, m.h > 44 ? 1 : 2);
+  }
+  panel(3, 3, 70, 14, WHITE);
+  text("SCORE " + mini.score, 8, 6, { size: 8, font: "Galmuri7" });
+  panel(100, 3, 57, 14, WHITE);
+  text("BEST " + (meta.best.catch || 0), 105, 6, { size: 8, font: "Galmuri7", color: GOLD });
+}
+
+/* ---- 2) 디그다 잡기: 30초 두더지 ---- */
+const HOLES = [[40, 52], [80, 52], [120, 52], [40, 84], [80, 84], [120, 84], [40, 116], [80, 116], [120, 116]];
+function updateWhack(now, dt) {
+  const el = now - mini.t0;
+  if (el >= mini.dur) { finishGame(Math.min(mini.score, 40), "TIME UP!"); return; }
+  if (mini.mole && now > mini.mole.t0 + mini.mole.dur) mini.mole = null;
+  if (!mini.mole && now >= mini.nextPop) {
+    const r = Math.random();
+    const type = r < 0.15 ? "poop" : (r < 0.27 ? "trio" : "dig");
+    mini.mole = { hole: Math.floor(Math.random() * 9), t0: now, dur: Math.max(420, 850 - el / 50), type, hit: false };
+    mini.nextPop = now + mini.mole.dur + Math.max(120, 400 - el / 100);
+  }
+}
+function drawWhack(now) {
+  for (const [hx, hy] of HOLES) {
+    ctx.fillStyle = "#6b4128"; ctx.fillRect(hx - 12, hy - 3, 24, 7);
+    ctx.fillStyle = "#3d2417"; ctx.fillRect(hx - 10, hy - 2, 20, 4);
+  }
+  const mole = mini.mole;
+  if (mole && !mole.hit) {
+    const [hx, hy] = HOLES[mole.hole];
+    const el = now - mole.t0;
+    const rise = Math.min(1, el / 140) * (mole.dur - el < 140 ? Math.max(0, (mole.dur - el) / 140) : 1);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(hx - 20, hy - 44, 40, 44); ctx.clip();
+    if (mole.type === "poop") drawMap(ctx, POOP, hx - 5, hy - 2 - rise * 14, 1);
+    else {
+      const key = mole.type === "trio" ? "51" : "50";
+      const im = getImg(bwURL(key)), m = metaOf(key);
+      if (im && m) drawHiFrame(im, m, animIndex(m, now, mole.t0), hx, hy + 2 + (1 - rise) * 30, 2);
+    }
+    ctx.restore();
+  }
+  panel(3, 3, 70, 14, WHITE);
+  text("SCORE " + mini.score, 8, 6, { size: 8, font: "Galmuri7" });
+  panel(112, 3, 45, 14, WHITE);
+  const remain = Math.max(0, Math.ceil((mini.dur - (now - mini.t0)) / 1000));
+  text("TIME " + remain, 117, 6, { size: 8, font: "Galmuri7", color: remain <= 5 ? RED : INK });
+  text("BEST " + (meta.best.whack || 0), 88, 6, { size: 7, font: "Galmuri7", color: GOLD, align: "center" });
+}
+function tapWhack(p) {
+  const mole = mini.mole;
+  if (!mole || mole.hit) return;
+  const [hx, hy] = HOLES[mole.hole];
+  if (Math.abs(p.x - hx) < 20 && p.y > hy - 44 && p.y < hy + 8) {
+    mole.hit = true;
+    if (mole.type === "poop") { mini.score = Math.max(0, mini.score - 3); sfx.buzz(); addFloat(hx - 6, hy - 30, "-3", RED); }
+    else { const v = mole.type === "trio" ? 3 : 1; mini.score += v; sfx.coin(); addFloat(hx - 4, hy - 30, "+" + v, GOLD); }
+  }
+}
+
+/* ---- 3) 하이 & 로우 ---- */
+function drawHilo(now) {
+  text("STREAK " + mini.streak + "   POT " + mini.pot + "c", 80, 6, { size: 8, font: "Galmuri7", align: "center", color: GOLD });
+  panel(50, 24, 60, 62, WHITE);
+  text(String(mini.cur), 80, 38, { size: 24, font: "Galmuri11", align: "center", color: PINK });
+  text("round " + mini.round + "/10", 80, 72, { size: 7, font: "Galmuri7", align: "center", color: LAV });
+  if (mini.last && now < mini.lock) text(mini.last, 80, 92, { size: 8, font: "Galmuri7", align: "center", color: mini.lastOk ? GREEN : RED });
+  else text("다음 카드는 더 클까, 작을까?", 80, 92, { size: 7, font: "Galmuri7", align: "center", color: LAV });
+  panel(10, 104, 62, 18, PINK2); text("▲ HIGH", 41, 109, { size: 8, font: "Galmuri7", align: "center" });
+  panel(88, 104, 62, 18, PINK2); text("▼ LOW", 119, 109, { size: 8, font: "Galmuri7", align: "center" });
+  panel(50, 126, 60, 14, mini.pot > 0 ? WHITE : CREAM2);
+  text("CASH OUT", 80, 129, { size: 7, font: "Galmuri7", align: "center", color: mini.pot > 0 ? INK : CREAM3 });
+}
+function tapHilo(p, now) {
+  if (now < mini.lock) return;
+  let guess = null;
+  if (inRect(p, { x: 10, y: 104, w: 62, h: 18 })) guess = "high";
+  else if (inRect(p, { x: 88, y: 104, w: 62, h: 18 })) guess = "low";
+  else if (inRect(p, { x: 50, y: 126, w: 60, h: 14 })) {
+    if (mini.pot > 0) { mini.score = mini.pot; finishGame(Math.min(mini.pot, 40), "CASH OUT! 잘했어"); }
+    return;
+  }
+  if (!guess) return;
+  const next = 1 + Math.floor(Math.random() * 9);
+  mini.round += 1;
+  if (next === mini.cur) { mini.last = "SAME " + next + "! 세이프"; mini.lastOk = true; sfx.press(); }
+  else if ((next > mini.cur) === (guess === "high")) {
+    mini.streak += 1; mini.pot += mini.streak * 2;
+    mini.last = next + "! 정답 +" + (mini.streak * 2) + "c"; mini.lastOk = true; sfx.coin();
+  } else {
+    mini.cur = next; mini.score = mini.streak;
+    finishGame(0, "꽝! " + next + "이었어... 판돈 소멸");
+    return;
+  }
+  mini.cur = next; mini.lock = now + 600;
+  if (mini.round >= 10) { mini.score = mini.pot; finishGame(Math.min(mini.pot, 40), "10라운드 클리어!"); }
+}
+
+/* ---- 4) 기억력 매치 ---- */
+const cardRect = i => ({ x: 8 + (i % 4) * 38, y: 22 + Math.floor(i / 4) * 30, w: 34, h: 26 });
+function updateMemory(now) {
+  if (mini.open.length === 2 && now >= mini.lockUntil) {
+    const [a, b] = mini.open;
+    if (mini.cards[a].f === mini.cards[b].f) { mini.cards[a].done = mini.cards[b].done = true; sfx.coin(); }
+    else { mini.cards[a].up = mini.cards[b].up = false; }
+    mini.open = [];
+    if (mini.cards.every(c => c.done)) {
+      mini.score = Math.max(1, 30 - mini.moves);
+      finishGame(clamp(40 - mini.moves * 2, 6, 30), "클리어! " + mini.moves + "번 만에");
+    }
+  }
+}
+function drawMemory(now) {
+  text("MOVES " + mini.moves + "   BEST " + (meta.best.memory || 0), 80, 6, { size: 8, font: "Galmuri7", align: "center", color: GOLD });
+  for (let i = 0; i < mini.cards.length; i++) {
+    const c = mini.cards[i], r = cardRect(i);
+    if (c.up || c.done) {
+      panel(r.x, r.y, r.w, r.h, c.done ? PINK2 : WHITE);
+      const im = getImg(FOOD_URL(c.f));
+      if (im) drawHiImg(im, r.x + r.w / 2, r.y + r.h - 4, 1);
+    } else {
+      panel(r.x, r.y, r.w, r.h, LAV);
+      ctx.fillStyle = "#8f83d1";
+      for (let yy = r.y + 4; yy < r.y + r.h - 3; yy += 4) for (let xx = r.x + 4; xx < r.x + r.w - 3; xx += 4) ctx.fillRect(xx, yy, 2, 2);
+    }
+  }
+}
+function tapMemory(p, now) {
+  if (mini.open.length === 2) return;
+  for (let i = 0; i < mini.cards.length; i++) {
+    const c = mini.cards[i];
+    if (!c.up && !c.done && inRect(p, cardRect(i))) {
+      c.up = true; mini.open.push(i); sfx.press();
+      if (mini.open.length === 2) { mini.moves += 1; mini.lockUntil = now + 650; }
+      return;
+    }
+  }
+}
+
+function updateMini(now, dt) {
+  if (mini.over) return;
+  if (mini.id === "catch") updateCatch(now, dt);
+  else if (mini.id === "whack") updateWhack(now, dt);
+  else if (mini.id === "memory") updateMemory(now);
+}
+function drawMini(now) {
+  drawFullBG();
+  if (mini.id === "catch") drawCatch(now);
+  else if (mini.id === "whack") drawWhack(now);
+  else if (mini.id === "hilo") drawHilo(now);
+  else if (mini.id === "memory") drawMemory(now);
+  for (const f of floats) text(f.txt, f.x, f.y - (now - f.t) * 0.02, { size: 8, font: "Galmuri7", color: f.color });
+  floats = floats.filter(f => now - f.t < 900);
+  if (mini.over) {
+    panel(20, 40, 120, 66, CREAM);
+    text(mini.msg || "GAME OVER", 80, 45, { size: 8, font: "Galmuri7", align: "center", color: PINK });
+    text("score: " + mini.score + (mini.newBest ? "  NEW BEST!" : ""), 80, 58, { size: 8, font: "Galmuri7", align: "center", color: mini.newBest ? GOLD : INK });
+    drawMap(ctx, MINI_COIN, 56, 72);
+    text("+" + mini.reward + " coins!", 84, 71, { size: 8, font: "Galmuri7", align: "center", color: GOLD });
+    if (Math.floor(now / 500) % 2 === 0) text("- touch! -", 80, 90, { size: 7, font: "Galmuri7", align: "center", color: LAV });
+  }
+}
+function drawGameSel(now) {
+  drawFullBG();
+  text("미니게임", 80, 6, { size: 10, align: "center" });
+  for (let i = 0; i < GAMES.length; i++) {
+    const g = GAMES[i], r = gameRect(i);
+    panel(r.x, r.y, r.w, r.h, WHITE);
+    text(g.name, r.x + r.w / 2, r.y + 4, { size: 9, align: "center" });
+    if (g.id === "catch") { const im = getImg(FOOD_URL("apple")); if (im) drawHiImg(im, r.x + r.w / 2, r.y + 31, 1); }
+    else if (g.id === "whack") { const im = getImg(bwURL("50")), m = metaOf("50"); if (im && m) drawHiFrame(im, m, animIndex(m, now, 0), r.x + r.w / 2, r.y + 32, 1); }
+    else if (g.id === "hilo") { panel(r.x + 27, r.y + 14, 14, 17, PINK2); text("7", r.x + 34, r.y + 17, { size: 9, font: "Galmuri11", align: "center", color: PINK }); }
+    else { panel(r.x + 21, r.y + 15, 12, 15, LAV); panel(r.x + 36, r.y + 15, 12, 15, LAV); }
+    text("best " + (meta.best[g.id] || 0), r.x + r.w / 2, r.y + 33, { size: 7, font: "Galmuri7", align: "center", color: GOLD });
+    text(g.desc, r.x + r.w / 2, r.y + 42, { size: 7, font: "Galmuri7", align: "center", color: LAV });
+  }
+  panel(55, 134, 50, 13, PINK2);
+  text("BACK", 80, 137, { size: 7, font: "Galmuri7", align: "center" });
 }
 
 /* ================= 레이아웃 ================= */
@@ -706,7 +984,7 @@ function drawViewport(now) {
     const hop = visitor.leaving ? 0 : ((Math.floor(now / 300) % 2) ? 1 : 0);
     drawHiImg(visitor.img, VIEW.x + vx, VIEW.y + VIEW.h - 4 + hop, 1);
     if (!visitor.gifted && !visitor.leaving && Math.floor(now / 600) % 2 === 0)
-      text("!", VIEW.x + vx + 16, VIEW.y + VIEW.h - 46, { size: 8, font: "Galmuri7", color: PINK });
+      text(visitor.quest ? "?" : "!", VIEW.x + vx + 16, VIEW.y + VIEW.h - 46, { size: 8, font: "Galmuri7", color: visitor.quest ? GOLD : PINK });
   }
 
   const cx = VIEW.x + 80, by = VIEW.y + VIEW.h - 4;
@@ -837,6 +1115,7 @@ function drawMain(now) {
     text("✦", 19 + nw, 5, { size: 8, font: "Galmuri7", color: GOLD });
   }
   if (!isEgg) text("Lv." + level(), 80, 3, { size: 8, font: "Galmuri7", color: LAV, align: "center" });
+  if (!isEgg && pet.quest) text("Q", 61, 3, { size: 8, font: "Galmuri7", color: GOLD });
   drawMap(ctx, MINI_COIN, 68, 13);
   text(String(pet.coins), 76, 12, { size: 8, font: "Galmuri7", color: GOLD });
   const tm = fmtTime();
@@ -887,12 +1166,17 @@ function drawMain(now) {
     text("◀", 13, 94, { size: 7, font: "Galmuri7", align: "center" });
     panel(140, 93, 14, 9, foodPage < FOOD_PAGES.length - 1 ? PINK2 : CREAM2);
     text("▶", 147, 94, { size: 7, font: "Galmuri7", align: "center" });
-    text(pg.title + "  " + (foodPage + 1) + "/" + FOOD_PAGES.length, 80, 94, { size: 8, font: "Galmuri7", align: "center", color: LAV });
+    if (foodSel >= 0 && pg.items[foodSel]) {
+      const sf = pg.items[foodSel];
+      text(FOOD_NAME[sf.id] + ": " + foodEffectText(sf), 80, 94, { size: 7, font: "Galmuri7", align: "center", color: INK });
+    } else {
+      text(pg.title + " " + (foodPage + 1) + "/" + FOOD_PAGES.length + " · 탭:효과 보기 2탭:먹이기", 80, 94, { size: 7, font: "Galmuri7", align: "center", color: LAV });
+    }
     for (let i = 0; i < pg.items.length; i++) {
       const fx = 8 + i * 25, fy = 103;
       const f = pg.items[i];
       const afford = (f.price || 0) <= pet.coins;
-      panel(fx, fy, 24, 18, WHITE);
+      panel(fx, fy, 24, 18, foodSel === i ? PINK2 : WHITE);
       if (f.care === "cure") drawMap(ctx, IC_MEDICINE, fx + 6, fy + 3);
       else if (f.care === "vitamin") drawMap(ctx, IC_VITAMIN, fx + 6, fy + 3);
       else {
@@ -923,8 +1207,9 @@ function drawMain(now) {
       text("age " + days + "d  ·  lv " + level() + "  ·  xp " + pet.xp, 26, 55, { size: 8, font: "Galmuri7" });
       if (pet.stage < ln.stages.length - 1) text("next evo: xp " + EVO_XP[pet.stage + 1], 26, 65, { size: 8, font: "Galmuri7", color: LAV });
       else text("최종 단계! ✦", 26, 65, { size: 8, font: "Galmuri7", color: LAV });
-      const st = pet.sick ? "status: SICK 💊" : (Date.now() < pet.immuneUntil ? "status: 튼튼함 ✦" : "status: 건강함");
-      text(st, 26, 75, { size: 8, font: "Galmuri7", color: pet.sick ? RED : GREEN });
+      const st = pet.sick ? "SICK 💊" : (Date.now() < pet.immuneUntil ? "튼튼함 ✦" : "건강함");
+      const qs = pet.quest ? ("Q: " + pet.quest.text + " " + pet.quest.cur + "/" + pet.quest.n) : "Q: 없음";
+      text(st + " · " + qs, 26, 75, { size: 7, font: "Galmuri7", color: pet.sick ? RED : (pet.quest ? GOLD : GREEN) });
       panel(24, 84, 40, 13, PINK2);
       text("DEX", 44, 87, { size: 7, font: "Galmuri7", align: "center" });
       panel(96, 84, 44, 13, resetArm > performance.now() ? RED : PINK2);
@@ -1002,36 +1287,6 @@ function drawGacha(now) {
   panel(55, 118, 50, 18, PINK2);
   text("결정!", 80, 122, { size: 10, align: "center" });
 }
-function drawMini(now) {
-  drawFullBG();
-  ctx.fillStyle = GREEN; ctx.fillRect(0, 140, LW, 10);
-  ctx.fillStyle = INK; ctx.fillRect(0, 139, LW, 1);
-  for (const it of mini.items) {
-    if (it.poop) drawMap(ctx, POOP, Math.round(it.x - 5), Math.round(it.y - 5));
-    else if (it.img) drawHiImg(it.img, it.x, it.y + 8, 1);
-  }
-  if (petAnim) {
-    const m = petAnim.m;
-    const k = m.h > 44 ? 1 : 2;
-    drawHiFrame(petAnim.img, m, animIndex(m, now, petAnim.t0), mini.petX, 140, k);
-  }
-  panel(3, 3, 70, 14, WHITE);
-  text("SCORE " + mini.score, 8, 6, { size: 8, font: "Galmuri7" });
-  panel(112, 3, 45, 14, WHITE);
-  const remain = Math.max(0, Math.ceil((mini.dur - (now - mini.t0)) / 1000));
-  text("TIME " + remain, 117, 6, { size: 8, font: "Galmuri7", color: remain <= 5 ? RED : INK });
-  for (const f of floats) text(f.txt, f.x, f.y - (now - f.t) * 0.02, { size: 8, font: "Galmuri7", color: f.color });
-  floats = floats.filter(f => now - f.t < 900);
-  if (mini.over) {
-    panel(24, 42, 112, 56, CREAM);
-    text("TIME UP!", 80, 48, { size: 10, align: "center", color: PINK });
-    text("score: " + mini.score, 80, 62, { size: 9, align: "center" });
-    drawMap(ctx, MINI_COIN, 56, 75);
-    text("+" + mini.score + " coins!", 84, 74, { size: 8, font: "Galmuri7", align: "center", color: GOLD });
-    if (Math.floor(now / 500) % 2 === 0) text("- touch! -", 80, 88, { size: 7, font: "Galmuri7", align: "center", color: LAV });
-  }
-}
-
 function render(now) {
   ctx.setTransform(PX, 0, 0, PX, 0, 0);
   ctx.imageSmoothingEnabled = false;
@@ -1039,6 +1294,7 @@ function render(now) {
   ctx.fillRect(0, 0, LW, LH);
   if (scene === "main" && pet) { drawMain(now); if (dexOpen) drawDex(now); }
   else if (scene === "mini" && mini) drawMini(now);
+  else if (scene === "gamesel") drawGameSel(now);
   else if (scene === "title") drawTitle(now);
   else if (scene === "gacha" || scene === "name") drawGacha(now);
   else text("LOADING...", 80, 70, { size: 10, align: "center", color: LAV });
@@ -1054,6 +1310,9 @@ function tick(now) {
     if (anim && now - anim.t > anim.dur) { if (anim.after) anim.after(); anim = null; }
     if (pet.mode === "egg" && !hatchFx && hatchProgress() >= 1) startHatch();
     if (evoReady()) startEvolution();
+    if (pet.quest && Date.now() > pet.quest.until) {
+      pet.quest = null; banner = { text: "퀘스트 기한이 지났어...", until: performance.now() + 2500 }; save();
+    }
     if (visitor) {
       if (visitor.leaving && now - visitor.leaveT > 1000) visitor = null;
       else if (!visitor.leaving && now > visitor.leaveAt) { visitor.leaving = true; visitor.leaveT = now; }
@@ -1071,11 +1330,24 @@ function lcdCoords(ev) {
 function inRect(p, r) { return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h; }
 
 cv.addEventListener("pointermove", ev => {
-  if (scene === "mini" && mini && !mini.over) mini.targetX = clamp(lcdCoords(ev).x, 14, 146);
+  if (scene === "mini" && mini && !mini.over && mini.id === "catch") mini.targetX = clamp(lcdCoords(ev).x, 14, 146);
 });
 cv.addEventListener("pointerdown", ev => {
   const p = lcdCoords(ev);
-  if (scene === "mini" && mini) { if (mini.over) endMini(); else mini.targetX = clamp(p.x, 14, 146); return; }
+  if (scene === "mini" && mini) {
+    const now = performance.now();
+    if (mini.over) { if (now - (mini.overAt || 0) > 400) endMini(); return; }
+    if (mini.id === "catch") mini.targetX = clamp(p.x, 14, 146);
+    else if (mini.id === "whack") tapWhack(p);
+    else if (mini.id === "hilo") tapHilo(p, now);
+    else if (mini.id === "memory") tapMemory(p, now);
+    return;
+  }
+  if (scene === "gamesel") {
+    for (let i = 0; i < GAMES.length; i++) if (inRect(p, gameRect(i))) { startGame(GAMES[i].id); return; }
+    if (inRect(p, { x: 55, y: 134, w: 50, h: 13 })) { scene = "main"; sfx.press(); }
+    return;
+  }
   if (scene === "title") { sfx.ok(); toGacha(); return; }
   if (scene === "gacha") {
     for (let i = 0; i < 9; i++) if (inRect(p, gachaRect(i))) { eggSel = i; sfx.press(); return; }
@@ -1101,13 +1373,17 @@ cv.addEventListener("pointerdown", ev => {
     infoOpen = false; resetArm = 0; sfx.press(); return;
   }
   if (foodOpen) {
-    if (inRect(p, { x: 6, y: 93, w: 14, h: 9 })) { if (foodPage > 0) { foodPage--; sfx.press(); } return; }
-    if (inRect(p, { x: 140, y: 93, w: 14, h: 9 })) { if (foodPage < FOOD_PAGES.length - 1) { foodPage++; sfx.press(); } return; }
+    if (inRect(p, { x: 6, y: 93, w: 14, h: 9 })) { if (foodPage > 0) { foodPage--; foodSel = -1; sfx.press(); } return; }
+    if (inRect(p, { x: 140, y: 93, w: 14, h: 9 })) { if (foodPage < FOOD_PAGES.length - 1) { foodPage++; foodSel = -1; sfx.press(); } return; }
     const pg = FOOD_PAGES[foodPage];
     for (let i = 0; i < pg.items.length; i++) {
-      if (inRect(p, { x: 8 + i * 25, y: 103, w: 24, h: 18 })) { doFeed(pg.items[i]); return; }
+      if (inRect(p, { x: 8 + i * 25, y: 103, w: 24, h: 18 })) {
+        if (foodSel === i) { foodSel = -1; doFeed(pg.items[i]); }
+        else { foodSel = i; sfx.press(); }
+        return;
+      }
     }
-    if (p.y < 92 || p.y > 123) { foodOpen = false; sfx.press(); }
+    if (p.y < 92 || p.y > 123) { foodOpen = false; foodSel = -1; sfx.press(); }
     return;
   }
   for (let i = 0; i < MENU.length; i++) {
@@ -1135,22 +1411,25 @@ function onMenu(id) {
   if (isEgg && id !== "info") { sfx.press(); return; }
   if (id === "food") {
     if (pet.sleeping) return sfx.press();
-    foodOpen = true; sfx.press();
+    foodOpen = true; foodSel = -1; sfx.press();
   } else if (id === "play") {
     if (pet.sleeping) return sfx.press();
     if (pet.sick) { banner = { text: "아파서 놀 수 없어... 약을 먹이자", until: performance.now() + 1800 }; return sfx.buzz(); }
     if (pet.energy < 10) { banner = { text: "너무 지쳐서 놀 수 없어...", until: performance.now() + 1800 }; return sfx.press(); }
-    startMini();
+    foodOpen = false; infoOpen = false;
+    scene = "gamesel"; sfx.press();
   } else if (id === "bath") {
     sfx.clean();
     anim = { type: "clean", t: performance.now(), dur: 1200, after: () => {
       pet.poops = []; pet.clean = 100; pet.xp += 4; pet.cnt.bath += 1; save();
+      questEvent("bath");
     }};
   } else if (id === "sleep") {
     pet.sleeping = !pet.sleeping;
     if (pet.sleeping && visitor && !visitor.leaving) { visitor.leaving = true; visitor.leaveT = performance.now(); }
     if (pet.sleeping) sfx.sleep(); else sfx.wake();
     save();
+    if (pet.sleeping) questEvent("sleep");
   } else if (id === "info") {
     infoOpen = true; resetArm = 0; sfx.press();
   }
@@ -1198,11 +1477,12 @@ async function doFeed(f) {
     if (Math.random() < 0.3 && pet.poops.length < 3)
       pet.poops.push({ x: 14 + Math.random() * 30, f: Math.random() < 0.5 });
     save();
+    questEvent("feed", { foodId: f.id });
   }};
 }
 
 document.addEventListener("keydown", ev => {
-  if (scene === "mini" && mini && !mini.over) {
+  if (scene === "mini" && mini && !mini.over && mini.id === "catch") {
     if (ev.key === "ArrowLeft") mini.targetX = clamp(mini.targetX - 18, 14, 146);
     if (ev.key === "ArrowRight") mini.targetX = clamp(mini.targetX + 18, 14, 146);
     return;
