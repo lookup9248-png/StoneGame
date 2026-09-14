@@ -280,12 +280,14 @@ function genQuest() {
     const f = FOOD_ALL[Math.floor(Math.random() * FOOD_ALL.length)];
     return { kind: "feed", foodId: f.id, n: 1, cur: 0, reward: 20 + f.price, text: FOOD_NAME[f.id] + " 먹이기" };
   }
-  if (r < 0.55) return { kind: "play", n: 2, cur: 0, reward: 25, text: "미니게임 2번 하기" };
-  if (r < 0.66) return { kind: "score", game: "catch", target: 8, n: 1, cur: 0, reward: 30, text: "베리캐치 8점 넘기기" };
-  if (r < 0.75) return { kind: "score", game: "whack", target: 12, n: 1, cur: 0, reward: 30, text: "디그다 12마리 잡기" };
-  if (r < 0.83) return { kind: "score", game: "jump", target: 10, n: 1, cur: 0, reward: 30, text: "장애물 점프 10점 넘기기" };
-  if (r < 0.89) return { kind: "score", game: "slot", target: 30, n: 1, cur: 0, reward: 35, text: "슬롯 한 번에 30c 이상 당첨" };
-  if (r < 0.94) return { kind: "bath", n: 1, cur: 0, reward: 15, text: "목욕시키기" };
+  if (r < 0.52) return { kind: "play", n: 2, cur: 0, reward: 25, text: "미니게임 2번 하기" };
+  if (r < 0.62) return { kind: "score", game: "catch", target: 8, n: 1, cur: 0, reward: 30, text: "베리캐치 8점 넘기기" };
+  if (r < 0.70) return { kind: "score", game: "whack", target: 12, n: 1, cur: 0, reward: 30, text: "디그다 12마리 잡기" };
+  if (r < 0.77) return { kind: "score", game: "jump", target: 10, n: 1, cur: 0, reward: 30, text: "장애물 점프 10점 넘기기" };
+  if (r < 0.83) return { kind: "score", game: "ball", target: 15, n: 1, cur: 0, reward: 30, text: "포켓볼 던지기 15점 넘기기" };
+  if (r < 0.88) return { kind: "score", game: "fish", target: 12, n: 1, cur: 0, reward: 30, text: "낚시 12점 넘기기" };
+  if (r < 0.92) return { kind: "score", game: "slot", target: 30, n: 1, cur: 0, reward: 35, text: "슬롯 한 번에 30c 이상 당첨" };
+  if (r < 0.96) return { kind: "bath", n: 1, cur: 0, reward: 15, text: "목욕시키기" };
   return { kind: "sleep", n: 1, cur: 0, reward: 15, text: "재우기 (SLEEP)" };
 }
 function questEvent(kind, data = {}) {
@@ -698,7 +700,12 @@ const GAMES = [
   { id: "memory", name: "기억력 매치", desc: "3라운드 · 제한시간" },
   { id: "slot",   name: "슬롯 머신",   desc: "코인 걸고 잭팟" },
   { id: "jump",   name: "장애물 점프", desc: "탭: 점프!" },
+  { id: "ball",   name: "포켓볼 던지기", desc: "링 타이밍 맞추기" },
+  { id: "fish",   name: "낚시",        desc: "입질 오면 탭!" },
 ];
+const GAME_PER = 6;
+let gamePage = 0;
+const gamePages = () => Math.ceil(GAMES.length / GAME_PER);
 const gameRect = i => ({ x: 6 + (i % 3) * 50, y: 18 + Math.floor(i / 3) * 58, w: 48, h: 54 });
 const SLOT_SYMS = [["apple", 5], ["burger", 5], ["donut", 5], ["star", 3], ["seven", 2], ["poop", 4]];
 const SLOT_BETS = [5, 10, 25];
@@ -734,6 +741,11 @@ function startGame(id) {
   if (id === "jump") {
     Object.assign(mini, { obs: [], dist: 0, nextAt: 70, speed: JUMP.v0, hgt: 0, vy: 0, onGround: true, holding: false, spawned: 0, landT: -1e9 });
     for (const k of JUMP_KINDS) if (k.key) getImg(bwURL(k.key));
+  }
+  if (id === "ball") { Object.assign(mini, { balls: 10, wild: null, nextWild: now + 300, ball: null, msg: "", msgUntil: 0, catches: 0, period: 1500 }); getImg(ASSET("볼/pokeball.png")); }
+  if (id === "fish") {
+    Object.assign(mini, { dur: 60000, phase: "idle", phaseT: now, hold: false, fish: null, caught: [], msg: "탭해서 낚싯대 던지기", msgUntil: now + 2500 });
+    for (const f of FISH_POOL) getImg(bwURL(f[0]));
   }
   if (id === "memory") {
     Object.assign(mini, { round: 0, streak: 0, maxStreak: 0, transition: 0, msg: "", msgUntil: 0 });
@@ -1211,6 +1223,150 @@ function drawJump(now) {
     text("주뱃은 뛰지 말고 지나가기!", 80, 58, { size: 7, font: "Galmuri7", align: "center", color: LAV });
 }
 
+/* ---- 7) 포켓볼 던지기: 줄어드는 링 타이밍에 맞춰 탭 ---- */
+const BALL_ZONES = [[12, 5, "EXCELLENT!", GOLD], [18, 3, "GREAT!", GREEN], [25, 2, "NICE", INK]];   // [링 반지름 이하, 점수, 문구, 색]
+function ballSpawn(now) {
+  const dex = DEX_ALL[Math.floor(Math.random() * DEX_ALL.length)];
+  const key = bwKey(dex, Math.random() < 1 / 16);
+  getImg(bwURL(key));
+  mini.wild = { key, dex, t0: now, dodgeAt: now + 1500 + Math.random() * 2500, dodging: 0, ringT0: now, period: mini.period };
+}
+function ballRing(now) { const w = mini.wild; const ph = ((now - w.ringT0) % w.period) / w.period; return 36 - 30 * ph; }
+function updateBall(now, dt) {
+  if (mini.ball) {
+    const b = mini.ball;
+    if (b.phase === "fly" && now >= b.t0 + 260) { b.phase = b.hit ? "shake" : "bounce"; b.t1 = now; if (b.hit) sfx.press(); else sfx.buzz(); }
+    else if (b.phase === "shake" && now >= b.t1 + 900) {
+      mini.score += b.pts; mini.catches += 1; sfx.coin(); addFloat(70, 40, "+" + b.pts, GOLD);
+      mini.period = Math.max(650, mini.period - 70);
+      mini.ball = null; mini.wild = null; mini.nextWild = now + 400;
+    } else if (b.phase === "bounce" && now >= b.t1 + 500) { mini.ball = null; if (mini.wild) mini.wild.ringT0 = now; }
+    if (!mini.ball && mini.balls <= 0) { finishGame(Math.min(mini.score, 40), mini.catches + "마리 잡았다!"); }
+    return;
+  }
+  if (!mini.wild) { if (now >= mini.nextWild) ballSpawn(now); return; }
+  const w = mini.wild;
+  if (!w.dodging && now >= w.dodgeAt) w.dodging = now;
+  if (w.dodging && now - w.dodging > 600) { w.dodging = 0; w.dodgeAt = now + 2000 + Math.random() * 3000; }
+}
+function drawBall(now) {
+  ctx.fillStyle = GREEN; ctx.fillRect(0, 96, LW, 54); ctx.fillStyle = "#7fa868"; for (let x = 4; x < LW; x += 22) ctx.fillRect(x, 104 + (x % 3) * 9, 8, 2);
+  ctx.fillStyle = INK; ctx.fillRect(0, 95, LW, 1);
+  const cx = 80, by = 92, w = mini.wild;
+  if (w) {
+    const im = getImg(bwURL(w.key)), m = metaOf(w.key);
+    const hop = w.dodging ? -Math.abs(Math.sin((now - w.dodging) / 600 * Math.PI)) * 14 : 0;
+    const hidden = mini.ball && mini.ball.phase === "shake";
+    if (im && m && !hidden) { const k = Math.min(3, Math.max(1, Math.floor(70 / m.h))); drawHiFrame(im, m, animIndex(m, now, w.t0), cx, by + hop, k); }
+    if (!mini.ball) {
+      const r = ballRing(now), z = BALL_ZONES.find(zz => r <= zz[0]);
+      ctx.strokeStyle = "rgba(168,132,44,0.45)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, by - 26, 12, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = z ? z[3] : "rgba(59,54,82,0.55)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, by - 26, r, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  const ballImg = getImg(ASSET("볼/pokeball.png"));
+  if (ballImg) {
+    let bx = cx, byy = 134, rot = 0;
+    if (mini.ball) {
+      const b = mini.ball;
+      if (b.phase === "fly") { const t = (now - b.t0) / 260; byy = 134 - (134 - (by - 26)) * t - Math.sin(t * Math.PI) * 20; rot = t * 6; }
+      else if (b.phase === "shake") { byy = by - 4; rot = Math.sin((now - b.t1) / 90) * 0.35; }
+      else { const t = (now - b.t1) / 500; bx = cx + 30 * t; byy = by - 26 + 30 * t - Math.sin(t * Math.PI) * 24; rot = t * 4; }
+    }
+    ctx.save(); ctx.translate(bx, byy); ctx.rotate(rot); ctx.imageSmoothingEnabled = true; ctx.drawImage(ballImg, -8, -8, 16, 16); ctx.restore();
+  }
+  panel(3, 3, 70, 14, WHITE); text("SCORE " + mini.score, 8, 6, { size: 8, font: "Galmuri7" });
+  panel(100, 3, 57, 14, WHITE); text("BEST " + (meta.best.ball || 0), 105, 6, { size: 8, font: "Galmuri7", color: GOLD });
+  text("볼 " + mini.balls, 86, 6, { size: 8, font: "Galmuri7", align: "center", color: RED });
+  if (w && !mini.ball) text(w.dodging ? "피하는 중!" : (DEXNAME[w.dex] + (w.key.endsWith("_s") ? " ✦" : "")), 80, 22, { size: 7, font: "Galmuri7", align: "center", color: w.dodging ? RED : INK });
+  if (now < mini.msgUntil) text(mini.msg, 80, 112, { size: 9, align: "center", color: mini.msgColor || INK });
+  else if (now - mini.t0 < 4500) text("링이 작아질 때 탭! 작을수록 고득점", 80, 112, { size: 7, font: "Galmuri7", align: "center", color: WHITE });
+}
+function tapBall(p, now) {
+  if (mini.ball || !mini.wild || mini.balls <= 0) return;
+  const w = mini.wild, r = ballRing(now);
+  const z = w.dodging ? null : BALL_ZONES.find(zz => r <= zz[0]);
+  mini.balls -= 1;
+  mini.ball = { phase: "fly", t0: now, hit: !!z, pts: z ? z[1] : 0 };
+  mini.msg = z ? z[2] : (w.dodging ? "피했다!" : "빗나감..."); mini.msgColor = z ? z[3] : RED; mini.msgUntil = now + 1000;
+  sfx.tap();
+}
+
+/* ---- 8) 낚시: 입질 타이밍 + 줄다리기(꾹 누르면 존이 위로) ---- */
+const FISH_POOL = [["129", 2, 0.5], ["60", 2, 0.5], ["54", 3, 0.6], ["116", 3, 0.65], ["120", 3, 0.65], ["86", 4, 0.75], ["117", 5, 0.85], ["121", 5, 0.85], ["87", 6, 0.95], ["130", 8, 1.1], ["131", 8, 1.0]];   // [BW key, 점수, 움직임]
+const FISH_WEIGHTS = [30, 20, 14, 12, 12, 8, 5, 5, 4, 2, 2];
+const FISH_BAR = { x: 138, y: 22, w: 12, h: 100 };
+function fishPick() { const total = FISH_WEIGHTS.reduce((a, b) => a + b, 0); let r = Math.random() * total; for (let i = 0; i < FISH_POOL.length; i++) { r -= FISH_WEIGHTS[i]; if (r <= 0) return FISH_POOL[i]; } return FISH_POOL[0]; }
+function fishSetPhase(ph, now) { mini.phase = ph; mini.phaseT = now; }
+function updateFish(now, dt) {
+  if (now - mini.t0 >= mini.dur && mini.phase !== "tug") { finishGame(Math.min(mini.score, 40), "TIME UP! " + mini.caught.length + "마리"); return; }
+  const ph = mini.phase, t = now - mini.phaseT;
+  if (ph === "wait") { if (t >= mini.waitFor) { fishSetPhase("bite", now); sfx.tap(); } }
+  else if (ph === "bite") { if (t > 750) { fishSetPhase("idle", now); mini.msg = "놓쳤다... 다시 던지기"; mini.msgUntil = now + 1500; sfx.buzz(); } }
+  else if (ph === "tug") {
+    const f = mini.fish;
+    if (now >= f.nextMove) { f.target = Math.random(); f.nextMove = now + 400 + Math.random() * 900; }
+    f.y += (f.target - f.y) * Math.min(1, dt * (1.6 + f.speed * 2.2));
+    f.zv = clamp(f.zv + (mini.hold ? -2.4 : 2.0) * dt, -0.9, 0.9);
+    f.zy += f.zv * dt;
+    if (f.zy < 0) { f.zy = 0; f.zv = 0; } if (f.zy > 1 - f.zh) { f.zy = 1 - f.zh; f.zv = 0; }
+    const inside = f.y >= f.zy - 0.03 && f.y <= f.zy + f.zh + 0.03;
+    f.prog = clamp(f.prog + (inside ? 0.38 : -0.3) * dt, 0, 1);
+    if (f.prog >= 1) { mini.score += f.pts; mini.caught.push(f.key); fishSetPhase("caught", now); mini.msg = DEXNAME[+f.key] + " 낚았다! +" + f.pts; mini.msgUntil = now + 1800; sfx.coin(); addFloat(84, 46, "+" + f.pts, GOLD); }
+    else if (f.prog <= 0) { fishSetPhase("idle", now); mini.msg = "도망갔다..."; mini.msgUntil = now + 1500; sfx.buzz(); }
+  }
+  else if (ph === "caught") { if (t > 1500) fishSetPhase("idle", now); }
+}
+function drawFish(now) {
+  ctx.fillStyle = "#7fb4d9"; ctx.fillRect(0, 96, LW, 54);
+  ctx.fillStyle = "#a8d0ea"; for (let i = 0; i < 6; i++) { const wx = ((i * 34 + now * 0.02) % (LW + 30)) - 15; ctx.fillRect(Math.round(wx), 104 + (i % 3) * 14, 12, 1); }
+  ctx.fillStyle = "#8b6b43"; ctx.fillRect(0, 90, 46, 8); ctx.fillStyle = "#6b4d2e"; ctx.fillRect(0, 98, 46, 3); ctx.fillRect(6, 101, 4, 12); ctx.fillRect(34, 101, 4, 12);
+  ctx.fillStyle = INK; ctx.fillRect(0, 95, LW, 1);
+  if (petAnim) { const m = petAnim.m, fi = animIndex(m, now, petAnim.t0); drawOutfit(m, fi, 24, 90, 1, pet.outfit, true); drawHiFrame(petAnim.img, m, fi, 24, 90, 1); drawOutfit(m, fi, 24, 90, 1, pet.outfit, false); }
+  const ph = mini.phase, t = now - mini.phaseT;
+  if (ph === "wait" || ph === "bite" || ph === "tug") {
+    const bob = ph === "bite" ? 3 : Math.sin(now / 300) * 1.5;
+    ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(34, 66); ctx.lineTo(92, 108 + bob); ctx.stroke();
+    ctx.fillStyle = RED; ctx.fillRect(89, 106 + bob, 6, 3); ctx.fillStyle = WHITE; ctx.fillRect(89, 109 + bob, 6, 3);
+    if (ph === "bite" && Math.floor(now / 120) % 2 === 0) text("!", 92, 86, { size: 12, font: "Galmuri11", align: "center", color: RED });
+  }
+  if (ph === "tug") {
+    const f = mini.fish, B = FISH_BAR;
+    panel(B.x - 2, B.y - 2, B.w + 4, B.h + 4, WHITE);
+    ctx.fillStyle = "#cfe6f5"; ctx.fillRect(B.x, B.y, B.w, B.h);
+    ctx.fillStyle = GREEN; ctx.fillRect(B.x, B.y + f.zy * B.h, B.w, f.zh * B.h);
+    const im = getImg(bwURL(f.key)), m = metaOf(f.key);
+    if (im && m) { const k = Math.min(20 * PX / m.h, 20 * PX / m.w); drawHiFrame(im, m, animIndex(m, now, mini.phaseT), B.x + B.w / 2, B.y + f.y * B.h + 9, k, true); }
+    panel(B.x - 12, B.y - 2, 7, B.h + 4, WHITE); ctx.fillStyle = f.prog > 0.5 ? GREEN : ORANGE; ctx.fillRect(B.x - 10, B.y + (1 - f.prog) * B.h, 3, f.prog * B.h);
+    text("꾹 누르면 존이 위로!", 66, 124, { size: 7, font: "Galmuri7", align: "center", color: WHITE });
+  } else if (ph === "caught") {
+    const f = mini.fish, im = getImg(bwURL(f.key)), m = metaOf(f.key);
+    if (im && m) { const k = Math.min(2, Math.max(1, Math.floor(50 / m.h))); drawHiFrame(im, m, animIndex(m, now, mini.phaseT), 92, 92 - Math.sin(Math.min(1, t / 400) * Math.PI) * 10, k); }
+    for (let i = 0; i < 3; i++) drawMap(ctx, SPARKLE_Y, 78 + i * 14, 50 + (i % 2) * 10);
+  }
+  panel(3, 3, 70, 14, WHITE); text("SCORE " + mini.score, 8, 6, { size: 8, font: "Galmuri7" });
+  panel(112, 3, 45, 14, WHITE);
+  const remain = Math.max(0, Math.ceil((mini.dur - (now - mini.t0)) / 1000));
+  text("TIME " + remain, 117, 6, { size: 8, font: "Galmuri7", color: remain <= 10 ? RED : INK });
+  text("BEST " + (meta.best.fish || 0), 88, 6, { size: 7, font: "Galmuri7", color: GOLD, align: "center" });
+  if (now < mini.msgUntil) text(mini.msg, 80, 24, { size: 8, font: "Galmuri7", align: "center", color: PINK });
+  else if (ph === "idle") text("탭해서 던지기", 80, 24, { size: 7, font: "Galmuri7", align: "center", color: LAV });
+  else if (ph === "wait") text("기다리는 중...", 80, 24, { size: 7, font: "Galmuri7", align: "center", color: LAV });
+  else if (ph === "bite") text("지금 탭!", 80, 24, { size: 9, align: "center", color: RED });
+}
+function tapFish(p, now) {
+  const ph = mini.phase;
+  if (ph === "idle") { fishSetPhase("wait", now); mini.waitFor = 1200 + Math.random() * 2600; sfx.press(); }
+  else if (ph === "wait") { fishSetPhase("idle", now); mini.msg = "너무 빨라! 입질을 기다려"; mini.msgUntil = now + 1200; sfx.buzz(); }
+  else if (ph === "bite") {
+    const [key, pts, speed] = fishPick();
+    mini.fish = { key, pts, speed, y: 0.5, target: 0.5, nextMove: now + 300, zy: 0.36, zh: 0.28, zv: 0, prog: 0.35 };
+    mini.hold = true; fishSetPhase("tug", now); sfx.ok();
+  }
+  else if (ph === "tug") mini.hold = true;
+}
+function fishRelease() { if (mini && mini.id === "fish") mini.hold = false; }
+
 function updateMini(now, dt) {
   if (mini.over) return;
   if (mini.id === "slot") updateSlot(now);
@@ -1218,6 +1374,8 @@ function updateMini(now, dt) {
   else if (mini.id === "whack") updateWhack(now, dt);
   else if (mini.id === "memory") updateMemory(now);
   else if (mini.id === "jump") updateJump(now, Math.min(dt, 0.05));
+  else if (mini.id === "ball") updateBall(now, dt);
+  else if (mini.id === "fish") updateFish(now, Math.min(dt, 0.05));
 }
 function drawMini(now) {
   drawFullBG();
@@ -1227,6 +1385,8 @@ function drawMini(now) {
   else if (mini.id === "memory") drawMemory(now);
   else if (mini.id === "slot") drawSlot(now);
   else if (mini.id === "jump") drawJump(now);
+  else if (mini.id === "ball") drawBall(now);
+  else if (mini.id === "fish") drawFish(now);
   for (const f of floats) text(f.txt, f.x, f.y - (now - f.t) * 0.02, { size: 8, font: "Galmuri7", color: f.color });
   floats = floats.filter(f => now - f.t < 900);
   if (mini.over) {
@@ -1240,9 +1400,11 @@ function drawMini(now) {
 }
 function drawGameSel(now) {
   drawFullBG();
-  text("미니게임", 80, 6, { size: 10, align: "center" });
-  for (let i = 0; i < GAMES.length; i++) {
-    const g = GAMES[i], r = gameRect(i);
+  text("미니게임 " + (gamePage + 1) + "/" + gamePages(), 80, 6, { size: 10, align: "center" });
+  for (let i = 0; i < GAME_PER; i++) {
+    const gi = gamePage * GAME_PER + i;
+    if (gi >= GAMES.length) break;
+    const g = GAMES[gi], r = gameRect(i);
     panel(r.x, r.y, r.w, r.h, WHITE);
     text(g.name, r.x + r.w / 2, r.y + 3, { size: 7, font: "Galmuri7", align: "center" });
     const icx = r.x + r.w / 2, icy = r.y + 32;
@@ -1251,12 +1413,18 @@ function drawGameSel(now) {
     else if (g.id === "hilo") { panel(icx - 7, icy - 17, 14, 17, PINK2); text("7", icx, icy - 14, { size: 9, font: "Galmuri11", align: "center", color: PINK }); }
     else if (g.id === "slot") { drawMap(ctx, SPARKLE_Y, icx - 8, icy - 16, 3); }
     else if (g.id === "jump") { const im = getImg(bwURL("74")), m = metaOf("74"); if (im && m) drawHiFrame(im, m, animIndex(m, now, 0), icx, icy + 1, 1); }
+    else if (g.id === "ball") { const im = getImg(ASSET("볼/pokeball.png")); if (im) { ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(im, icx - 9, icy - 18, 18, 18); ctx.restore(); } }
+    else if (g.id === "fish") { const im = getImg(bwURL("129")), m = metaOf("129"); if (im && m) drawHiFrame(im, m, animIndex(m, now, 0), icx, icy + 2, Math.min(1, 26 * PX / m.h), true); }
     else { panel(icx - 13, icy - 16, 11, 15, LAV); panel(icx + 1, icy - 16, 11, 15, LAV); }
     text("best " + (meta.best[g.id] || 0), r.x + r.w / 2, r.y + 35, { size: 7, font: "Galmuri7", align: "center", color: GOLD });
     text(g.desc, r.x + r.w / 2, r.y + 44, { size: 7, font: "Galmuri7", align: "center", color: LAV });
   }
+  panel(8, 135, 30, 12, gamePage > 0 ? PINK2 : CREAM2);
+  text("◀", 23, 137, { size: 7, font: "Galmuri7", align: "center", color: gamePage > 0 ? INK : CREAM3 });
   panel(55, 135, 50, 12, PINK2);
   text("BACK", 80, 137, { size: 7, font: "Galmuri7", align: "center" });
+  panel(122, 135, 30, 12, gamePage < gamePages() - 1 ? PINK2 : CREAM2);
+  text("▶", 137, 137, { size: 7, font: "Galmuri7", align: "center", color: gamePage < gamePages() - 1 ? INK : CREAM3 });
 }
 
 /* ================= 레이아웃 ================= */
@@ -1319,6 +1487,19 @@ function drawHiImg(img, lx, lyBottom, k, smooth = false) {
   ctx.drawImage(img, rx, ry, Math.round(dw), Math.round(dh));
   ctx.restore();
 }
+/* 회전·좌우반전 버전 (옷 조정용): 이미지 중심 기준 회전, 실제 픽셀 좌표에서 그림 */
+function drawHiImgT(img, lx, lyBottom, k, rot = 0, flip = false, smooth = false) {
+  if (!rot && !flip) return drawHiImg(img, lx, lyBottom, k, smooth);
+  const dw = Math.round(img.width * k), dh = Math.round(img.height * k);
+  const cx = Math.round(lx * PX), cy = Math.round(lyBottom * PX - dh / 2);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, cx, cy);
+  ctx.rotate(rot * Math.PI / 180);
+  if (flip) ctx.scale(-1, 1);
+  ctx.imageSmoothingEnabled = smooth;
+  ctx.drawImage(img, -Math.round(dw / 2), -Math.round(dh / 2), dw, dh);
+  ctx.restore();
+}
 /* 뷰포트용 펫 스케일: 실제 높이 ~50~104px 목표 (정수배) */
 const petScale = m => clamp(Math.floor(104 / m.h), 1, 3);
 
@@ -1346,7 +1527,7 @@ function drawEggSprite(img, cx, cy, h, rot = 0) {
 /* 장착 아이템: 프레임별 바운딩박스(m.bb)를 기준으로 머리/얼굴/목 위치에 그림 */
 function fitOf(dex, slot) {
   const f = (meta.fit[dex] || {})[slot];
-  return f || { dx: 0, dy: 0, s: 1 };
+  return f ? { dx: f.dx || 0, dy: f.dy || 0, s: f.s || 1, rot: f.rot || 0, flip: !!f.flip } : { dx: 0, dy: 0, s: 1, rot: 0, flip: false };
 }
 function setFit(dex, slot, f) {
   meta.fit[dex] = meta.fit[dex] || {};
@@ -1384,7 +1565,7 @@ function drawOutfit(m, fi, cx, bottomY, k, outfit, behind, dex) {
     let y;
     if (slot === "hat") y = by0 - ih + (it.dy || 0) * ik / PX;
     else y = by0 + bh * (it.fy != null ? it.fy : (slot === "face" ? 0.28 : 0.62)) - ih / 2;
-    drawHiImg(im, bcx + (it.dx || 0) * bw + f.dx * k / PX, y + ih + f.dy * k / PX, ik);
+    drawHiImgT(im, bcx + (it.dx || 0) * bw + f.dx * k / PX, y + ih + f.dy * k / PX, ik, f.rot, f.flip);
   }
 }
 function drawPetAt(now, cx, bottomY, opts = {}) {
@@ -1762,15 +1943,19 @@ function closetTap(idx) {
 
 /* ================= 옷 위치·크기 조정 ================= */
 const ADJ_BTNS = [
-  { id: "left",  x: 6,   y: 98, w: 26, h: 14, label: "◀" },
-  { id: "up",    x: 36,  y: 98, w: 26, h: 14, label: "▲" },
-  { id: "down",  x: 66,  y: 98, w: 26, h: 14, label: "▼" },
-  { id: "right", x: 96,  y: 98, w: 26, h: 14, label: "▶" },
-  { id: "reset", x: 126, y: 98, w: 28, h: 14, label: "리셋" },
-  { id: "small", x: 6,   y: 116, w: 44, h: 14, label: "작게 −" },
-  { id: "big",   x: 54,  y: 116, w: 44, h: 14, label: "크게 +" },
-  { id: "done",  x: 102, y: 116, w: 52, h: 14, label: "완료" },
+  { id: "left",  x: 6,   y: 96, w: 26, h: 13, label: "◀" },
+  { id: "up",    x: 36,  y: 96, w: 26, h: 13, label: "▲" },
+  { id: "down",  x: 66,  y: 96, w: 26, h: 13, label: "▼" },
+  { id: "right", x: 96,  y: 96, w: 26, h: 13, label: "▶" },
+  { id: "reset", x: 126, y: 96, w: 28, h: 13, label: "리셋" },
+  { id: "small", x: 6,   y: 112, w: 34, h: 13, label: "작게 −" },
+  { id: "big",   x: 44,  y: 112, w: 34, h: 13, label: "크게 +" },
+  { id: "rotl",  x: 82,  y: 112, w: 34, h: 13, label: "↺ 회전" },
+  { id: "rotr",  x: 120, y: 112, w: 34, h: 13, label: "회전 ↻" },
+  { id: "flip",  x: 6,   y: 128, w: 72, h: 13, label: "좌우 반전" },
+  { id: "done",  x: 82,  y: 128, w: 72, h: 13, label: "완료" },
 ];
+const ROT_STEP = 15;
 function drawAdjust(now) {
   panel(2, 2, 156, 146, CREAM);
   const it = CAT_BY_ID[pet.outfit[adjustSlot]];
@@ -1787,12 +1972,11 @@ function drawAdjust(now) {
   }
   ctx.restore();
   const f = fitOf(pet.dex, adjustSlot);
-  text("x " + f.dx + "  y " + f.dy + "  크기 " + Math.round(f.s * 100) + "%  ·  " + DEXNAME[pet.dex] + " 전용 저장", 80, 92 - 1, { size: 7, font: "Galmuri7", align: "center", color: LAV });
+  text("x" + f.dx + " y" + f.dy + " " + Math.round(f.s * 100) + "% " + f.rot + "°" + (f.flip ? " 반전" : "") + " · " + DEXNAME[pet.dex] + " 전용", 80, 91, { size: 7, font: "Galmuri7", align: "center", color: LAV });
   for (const b of ADJ_BTNS) {
-    panel(b.x, b.y, b.w, b.h, b.id === "done" ? PINK2 : WHITE);
+    panel(b.x, b.y, b.w, b.h, b.id === "done" ? PINK2 : (b.id === "flip" && f.flip ? "#f4d267" : WHITE));
     text(b.label, b.x + b.w / 2, b.y + 3, { size: 8, font: "Galmuri7", align: "center" });
   }
-  text("포켓몬마다 따로 기억돼요 (모든 " + SLOT_KO[adjustSlot] + " 아이템 공통)", 80, 136, { size: 7, font: "Galmuri7", align: "center", color: LAV });
 }
 function adjustTap(p) {
   for (const b of ADJ_BTNS) {
@@ -1803,7 +1987,11 @@ function adjustTap(p) {
     else if (b.id === "small" || b.id === "big") {
       let i = FIT_STEPS.indexOf(f.s); if (i < 0) i = 2;
       i = clamp(i + (b.id === "big" ? 1 : -1), 0, FIT_STEPS.length - 1); f.s = FIT_STEPS[i];
-    } else if (b.id === "reset") { f.dx = 0; f.dy = 0; f.s = 1; }
+    } else if (b.id === "rotl" || b.id === "rotr") {
+      let r = (f.rot || 0) + (b.id === "rotr" ? ROT_STEP : -ROT_STEP);
+      if (r > 180) r -= 360; if (r <= -180) r += 360; f.rot = r;
+    } else if (b.id === "flip") { f.flip = !f.flip; }
+    else if (b.id === "reset") { f.dx = 0; f.dy = 0; f.s = 1; f.rot = 0; f.flip = false; }
     else if (b.id === "done") { adjustOpen = false; closetOpen = true; sfx.ok(); return; }
     setFit(pet.dex, adjustSlot, f); sfx.press(); return;
   }
@@ -2035,8 +2223,8 @@ function inRect(p, r) { return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p
 cv.addEventListener("pointermove", ev => {
   if (scene === "mini" && mini && !mini.over && mini.id === "catch") mini.targetX = clamp(lcdCoords(ev).x, 14, 146);
 });
-cv.addEventListener("pointerup", () => jumpRelease());
-cv.addEventListener("pointercancel", () => jumpRelease());
+cv.addEventListener("pointerup", () => { jumpRelease(); fishRelease(); });
+cv.addEventListener("pointercancel", () => { jumpRelease(); fishRelease(); });
 cv.addEventListener("pointerdown", ev => {
   const p = lcdCoords(ev);
   if (scene === "mini" && mini) {
@@ -2048,10 +2236,18 @@ cv.addEventListener("pointerdown", ev => {
     else if (mini.id === "memory") tapMemory(p, now);
     else if (mini.id === "slot") tapSlot(p, now);
     else if (mini.id === "jump") jumpDo();
+    else if (mini.id === "ball") tapBall(p, now);
+    else if (mini.id === "fish") tapFish(p, now);
     return;
   }
   if (scene === "gamesel") {
-    for (let i = 0; i < GAMES.length; i++) if (inRect(p, gameRect(i))) { startGame(GAMES[i].id); return; }
+    for (let i = 0; i < GAME_PER; i++) {
+      const gi = gamePage * GAME_PER + i;
+      if (gi >= GAMES.length) break;
+      if (inRect(p, gameRect(i))) { startGame(GAMES[gi].id); return; }
+    }
+    if (inRect(p, { x: 8, y: 135, w: 30, h: 12 })) { if (gamePage > 0) { gamePage--; sfx.press(); } return; }
+    if (inRect(p, { x: 122, y: 135, w: 30, h: 12 })) { if (gamePage < gamePages() - 1) { gamePage++; sfx.press(); } return; }
     if (inRect(p, { x: 55, y: 135, w: 50, h: 12 })) { scene = "main"; sfx.press(); }
     return;
   }
@@ -2239,7 +2435,7 @@ async function doFeed(f) {
   }};
 }
 
-document.addEventListener("keyup", ev => { if (ev.code === "Space" || ev.key === "ArrowUp") jumpRelease(); });
+document.addEventListener("keyup", ev => { if (ev.code === "Space" || ev.key === "ArrowUp") { jumpRelease(); fishRelease(); } });
 document.addEventListener("keydown", ev => {
   if (scene === "mini" && mini && !mini.over && mini.id === "catch") {
     if (ev.key === "ArrowLeft") mini.targetX = clamp(mini.targetX - 18, 14, 146);
@@ -2248,6 +2444,10 @@ document.addEventListener("keydown", ev => {
   }
   if (scene === "mini" && mini && !mini.over && mini.id === "jump") {
     if (ev.code === "Space" || ev.key === "ArrowUp") { ev.preventDefault(); if (!ev.repeat) jumpDo(); }
+    return;
+  }
+  if (scene === "mini" && mini && !mini.over && (mini.id === "fish" || mini.id === "ball")) {
+    if (ev.code === "Space" || ev.key === "ArrowUp") { ev.preventDefault(); if (!ev.repeat) { if (mini.id === "fish") tapFish(null, performance.now()); else tapBall(null, performance.now()); } }
     return;
   }
   if (scene === "gacha") {
@@ -2386,7 +2586,8 @@ window.addEventListener("resize", applyShell);
   bgDay = await loadImg(ASSET("인게임배경/bg_day.png"));
   bgNight = await loadImg(ASSET("인게임배경/bg_night.png"));
   for (const pg of FOOD_PAGES) for (const f of pg.items) if (!f.care) getImg(FOOD_URL(f.id));
-  for (const k of ["50", "51", "74", "100", "27", "41", "132"]) getImg(bwURL(k));   // 미니게임 아이콘/장애물/메타몽 스프라이트 예열
+  for (const k of ["50", "51", "74", "100", "27", "41", "132", "129"]) getImg(bwURL(k));   // 미니게임 아이콘/장애물/메타몽/잉어킹 스프라이트 예열
+  getImg(ASSET("볼/pokeball.png"));
   for (const c of EGG_ORDER) loadImg(eggURL(c)).then(im => eggImgs[c] = im);
   sparkles = [{ x: 12, y: 30, ph: 0 }, { x: 140, y: 36, ph: 0.7 }, { x: 28, y: 52, ph: 1.3 }, { x: 126, y: 60, ph: 2.1 }];
 
