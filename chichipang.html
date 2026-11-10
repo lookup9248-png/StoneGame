@@ -95,24 +95,24 @@ const faces=[];let tiles=[];
 function loadAll(){
   return Promise.all(IMG.map((m,i)=>new Promise(res=>{const im=new Image();im.onload=()=>{faces[i]=im;res();};im.onerror=()=>res();im.src=m.src;})));
 }
+const FS=51,OUT=3.4;   // 얼굴 최대 크기, 색 테두리 두께 (칸 68 안에 여백을 남김)
 function buildTiles(){
   tilesSC=SC;tiles=[];
   for(let k=0;k<=K;k++){
     const S=Math.round(CELL*SC),cn=document.createElement('canvas');cn.width=cn.height=S;
     const c=cn.getContext('2d');c.scale(S/CELL,S/CELL);
-    const bomb=k===K,kd=bomb?{bg:'#fff',rim:'#e0a020'}:KIND[k];
-    rr(c,3,7,62,59,15);c.fillStyle=shade(kd.rim,-0.22);c.fill();
-    rr(c,3,2,62,59,15);
-    if(bomb){const g=c.createLinearGradient(3,2,65,61);
-      ['#ff8fa8','#ffd36b','#fff59a','#9be8a8','#8fd0ff','#c9a8ff'].forEach((h,i)=>g.addColorStop(i/5,h));c.fillStyle=g;}
-    else{const g=c.createLinearGradient(0,2,0,61);g.addColorStop(0,shade(kd.bg,0.45));g.addColorStop(1,kd.bg);c.fillStyle=g;}
-    c.fill();c.lineWidth=2.5;c.strokeStyle=kd.rim;c.stroke();
-    c.fillStyle='rgba(255,255,255,.55)';c.beginPath();c.ellipse(19,11,11,4,-0.35,0,7);c.fill();
-    const im=faces[k];
-    if(im){const s=Math.min(60/im.width,57/im.height),w=im.width*s,h=im.height*s;
-      c.imageSmoothingQuality='high';c.drawImage(im,34-w/2,32.5-h/2,w,h);}
-    else{c.fillStyle=kd.rim;c.beginPath();c.arc(34,32,18,0,7);c.fill();}
+    const bomb=k===K,col=bomb?'#ffcf33':KIND[k].rim,im=faces[k];
     tiles[k]=cn;
+    if(!im){c.fillStyle=col;c.beginPath();c.arc(34,34,24,0,7);c.fill();continue;}
+    const s=Math.min(FS/im.width,FS/im.height),w=im.width*s,h=im.height*s,x=34-w/2,y=33-h/2;
+    const sil=cl=>{const t=document.createElement('canvas');t.width=t.height=S;const q=t.getContext('2d');q.scale(S/CELL,S/CELL);
+      q.imageSmoothingQuality='high';q.drawImage(im,x,y,w,h);q.globalCompositeOperation='source-in';q.fillStyle=cl;q.fillRect(0,0,CELL,CELL);return t;};
+    const stamp=(t,r,dy)=>{for(let a=0;a<24;a++)c.drawImage(t,Math.cos(a*Math.PI/12)*r,Math.sin(a*Math.PI/12)*r+dy,CELL,CELL);};
+    c.globalAlpha=0.16;stamp(sil('#000'),OUT+0.6,3.2);c.globalAlpha=1;   // 바닥 그림자
+    stamp(sil(shade(col,-0.28)),OUT,1.6);                                // 테두리 아랫면(두께감)
+    stamp(sil(col),OUT,0);                                               // 색 테두리
+    stamp(sil('#fff'),1.3,0);                                            // 얇은 흰 띠
+    c.imageSmoothingQuality='high';c.drawImage(im,x,y,w,h);
   }
 }
 
@@ -403,9 +403,9 @@ function render(){
   if(shakeT>0)ctx.translate((Math.random()-0.5)*10*shakeT/0.3,(Math.random()-0.5)*10*shakeT/0.3);
   rr(ctx,BX-13,BY-13,BW+26,BW+40,22);ctx.fillStyle='#b98562';ctx.fill();
   rr(ctx,BX-13,BY-13,BW+26,BW+26,22);ctx.fillStyle='#fbe9d8';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#e7c2a6';ctx.stroke();
-  rr(ctx,BX-4,BY-4,BW+8,BW+8,14);ctx.fillStyle='#ecd0ba';ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,.22)';
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if((r+c)%2===0){rr(ctx,BX+c*CELL+2,BY+r*CELL+2,CELL-4,CELL-4,12);ctx.fill();}
+  rr(ctx,BX-4,BY-4,BW+8,BW+8,14);ctx.fillStyle='#4a3550';ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.07)';
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if((r+c)%2===0){ctx.fillRect(BX+c*CELL,BY+r*CELL,CELL,CELL);}
   ctx.save();ctx.beginPath();ctx.rect(BX-5,BY-5,BW+10,BW+10);ctx.clip();
   const hideAll=paused&&state==='play';
   if(!hideAll)for(let pass=0;pass<2;pass++)for(let r=0;r<N;r++)for(let c=0;c<N;c++){
@@ -418,11 +418,11 @@ function render(){
     if(sel&&sel.r===r&&sel.c===c)s*=1.1+Math.sin(T*10)*0.03;
     if(hint&&hint.some(q=>q.r===r&&q.c===c)){x+=Math.sin(T*16)*2.5;s*=1.05;}
     if(p.bomb&&p.die<0){s*=1+Math.sin(T*7)*0.04;
-      ctx.globalAlpha=0.5+Math.sin(T*7)*0.2;ctx.fillStyle='#fff7c0';ctx.beginPath();ctx.arc(x,y,CELL*0.56,0,7);ctx.fill();}
+      ctx.globalAlpha=0.5+Math.sin(T*7)*0.2;ctx.fillStyle='#fff3a0';ctx.beginPath();ctx.arc(x,y,CELL*0.5,0,7);ctx.fill();}
     ctx.globalAlpha=al;
     const tl=tiles[p.bomb?K:p.k],d=CELL*s;
     ctx.drawImage(tl,x-d/2,y-d/2,d,d);
-    if(sel&&sel.r===r&&sel.c===c){ctx.globalAlpha=1;rr(ctx,x-d/2+2,y-d/2+1,d-4,d-5,15);ctx.lineWidth=3.5;ctx.strokeStyle='#ff5c8a';ctx.stroke();}
+    if(sel&&sel.r===r&&sel.c===c){ctx.globalAlpha=1;ctx.beginPath();ctx.arc(x,y-1,d*0.49,0,7);ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.setLineDash([7,5]);ctx.lineDashOffset=-T*30;ctx.stroke();ctx.setLineDash([]);}
     ctx.globalAlpha=1;
   }
   ctx.restore();
