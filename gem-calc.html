@@ -100,7 +100,7 @@ textarea{width:100%;min-height:90px;font:13px/1.4 ui-monospace,monospace;padding
       </table>
     </div>
     <div class="tools">
-      <button id="preset" type="button">템차트 시세로 12종 채우기</button>
+      <button id="preset" type="button" title="템차트 11/19~20 거래 중앙값을 고정값으로 넣어둔 것 (실시간 아님)">11/20 시세로 12종 채우기</button>
       <button id="dup" type="button">이 보석 복사해서 추가</button>
       <button id="del" class="danger" type="button">이 보석 삭제</button>
     </div>
@@ -352,7 +352,7 @@ $('preset').addEventListener('click',()=>{
     Object.assign(g.v,{pN:String(pN),pL:String(pL),pM:String(pM),pH:String(pH),q1:PROB[t][0],q2:PROB[t][1],q3:PROB[t][2],s1:'90',s2:'30'});
   }
   store.gems=store.gems.filter(g=>!/\(예시\)$/.test(g.v.name||''));
-  select(store.gems.find(g=>g.v.name==='오팔').id);persist(`템차트 11/20 시세로 ${added}개 추가, ${upd}개 갱신`);
+  select(store.gems.find(g=>g.v.name==='오팔').id);persist(`11/20 템차트 시세(고정값)로 ${added}개 추가, ${upd}개 갱신`);
 });
 toForm(cur());render();
 
