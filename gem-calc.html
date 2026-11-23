@@ -100,6 +100,7 @@ textarea{width:100%;min-height:90px;font:13px/1.4 ui-monospace,monospace;padding
       </table>
     </div>
     <div class="tools">
+      <button id="preset" type="button">템차트 시세로 12종 채우기</button>
       <button id="dup" type="button">이 보석 복사해서 추가</button>
       <button id="del" class="danger" type="button">이 보석 삭제</button>
     </div>
@@ -190,8 +191,8 @@ textarea{width:100%;min-height:90px;font:13px/1.4 ui-monospace,monospace;padding
         <div class="row"><label for="q3">1단계: 상급 나올 확률</label><div class="field"><input id="q3" type="number" min="0" max="100" step="0.1" value="5"><span>%</span></div></div>
         <div class="warn" id="qWarn"></div>
         <div class="row"><label for="s1">하급 → 중급 성공률<small>실패하면 하급 1개만 사라짐</small></label><div class="field"><input id="s1" type="number" min="1" max="100" step="0.1" value="90"><span>%</span></div></div>
-        <div class="row"><label for="s2">중급 → 상급 성공률<small>실패하면 중급 1개만 사라짐</small></label><div class="field"><input id="s2" type="number" min="1" max="100" step="0.1" value="90"><span>%</span></div></div>
-        <p class="note">확률은 공식 공개값이 아니고 유저 정리글 기준이에요. 크리스탈과 보석은 확률이 다를 수 있으니, 직접 깎아본 결과가 있으면 그 값으로 바꿔 넣으세요.</p>
+        <div class="row"><label for="s2">중급 → 상급 성공률<small>실패하면 중급 1개만 사라짐</small></label><div class="field"><input id="s2" type="number" min="1" max="100" step="0.1" value="30"><span>%</span></div></div>
+        <p class="note">확률은 공식 공개값이 아니에요. 유저 1,000개 제련 실측 기준으로 크리스탈은 하급 79 / 중급 20 / 상급 1%, 하→중 90%, 중→상 30%예요. 보석은 그 글의 결과(1,000개당 상급 71개)에 맞춰 71 / 24.5 / 4.5%로 잡았어요. 직접 깎아본 결과가 있으면 그 값으로 바꿔 넣으세요.</p>
       </fieldset>
     </form>
   </div>
@@ -337,6 +338,21 @@ $('copy').addEventListener('click',async()=>{
   const t=`[${v.name} 깎기 계산]\n시세: 일반 ${fmt(v.pN,false)} / 하급 ${fmt(v.pL,false)} / 중급 ${fmt(v.pM,false)} / 상급 ${fmt(v.pH,false)}\n추천: ${best.s.name}\n1개당 기대 이익: ${fmt(best.e.profit)}\n${v.n}개 기대 이익: ${fmt(best.e.profit*v.n)}`+(s.N?`\n손해 볼 확률(${s.N}개 기준): ${+s.lp.toFixed(1)}%  (운 나쁠 때 ${fmt(s.p10)} ~ 좋을 때 ${fmt(s.p90)})`:'')+`\n본전 매입가: 일반 ${fmt(v.pN+best.e.profit,false)} 이하\nhttps://stonegame-771.pages.dev/gem-calc`;
   try{await navigator.clipboard.writeText(t);$('copyMsg').textContent='복사했어요. 카톡에 붙여넣으면 돼요.'}
   catch(e){$('copyMsg').style.whiteSpace='pre-line';$('copyMsg').textContent='복사가 막혀 있어요. 아래 내용을 직접 복사해 주세요:\n'+t}
+});
+const PRESET=[
+ ['다이아몬드',3.3,0.01,17.3,388,'g'],['사파이어',0.04,0.01,12.4,353,'g'],['가넷',0.05,0.01,12.5,359,'g'],['오팔',27.8,0.1,58,869,'g'],
+ ['자수정',0.1,0.01,12,323,'g'],['아쿠아마린',1.2,1.9,89.9,12,'g'],['토파즈',0.07,0.01,12,366,'g'],['에메랄드',0.09,0.03,0.08,150,'g'],
+ ['힘의 크리스탈',10.2,0.06,42,759,'c'],['지혜의 크리스탈',5.4,0.03,38.9,680,'c'],['행운의 크리스탈',27.9,2.39,83,1300,'c'],['민첩성의 크리스탈',27.3,2.5,83,1280,'c']];
+const PROB={g:['71','24.5','4.5'],c:['79','20','1']};
+$('preset').addEventListener('click',()=>{
+  let added=0,upd=0;
+  for(const [nm,pN,pL,pM,pH,t] of PRESET){
+    let g=store.gems.find(x=>(x.v.name||'').replace(/\s*\(예시\)$/,'')===nm);
+    if(!g){g={id:uid(),v:{...DEF,name:nm}};store.gems.push(g);added++}else upd++;
+    Object.assign(g.v,{pN:String(pN),pL:String(pL),pM:String(pM),pH:String(pH),q1:PROB[t][0],q2:PROB[t][1],q3:PROB[t][2],s1:'90',s2:'30'});
+  }
+  store.gems=store.gems.filter(g=>!/\(예시\)$/.test(g.v.name||''));
+  select(store.gems.find(g=>g.v.name==='오팔').id);persist(`템차트 11/20 시세로 ${added}개 추가, ${upd}개 갱신`);
 });
 toForm(cur());render();
 
