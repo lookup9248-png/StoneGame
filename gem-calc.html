@@ -95,12 +95,12 @@ textarea{width:100%;min-height:90px;font:13px/1.4 ui-monospace,monospace;padding
     <div class="chips" id="chips"></div>
     <div class="scroll">
       <table class="ov">
-        <thead><tr><th>보석</th><th class="n">일반</th><th class="n">하급</th><th class="n">중급</th><th class="n">상급</th><th>추천</th><th class="n">1개당</th></tr></thead>
+        <thead><tr><th>보석</th><th class="n">원석×10</th><th class="n">일반</th><th class="n">하급</th><th class="n">중급</th><th class="n">상급</th><th>추천</th><th class="n">1개당</th></tr></thead>
         <tbody id="ovb"></tbody>
       </table>
     </div>
     <div class="tools">
-      <button id="preset" type="button" title="템차트 11/19~20 거래 중앙값을 고정값으로 넣어둔 것 (실시간 아님)">11/20 시세로 12종 채우기</button>
+      <button id="preset" type="button" title="템차트 11/24 오전 거래가(거래 없던 품목은 11/20 중앙값)를 고정값으로 넣어둔 것, 실시간 아님">11/24 시세로 12종 채우기</button>
       <button id="dup" type="button">이 보석 복사해서 추가</button>
       <button id="del" class="danger" type="button">이 보석 삭제</button>
     </div>
@@ -123,6 +123,7 @@ textarea{width:100%;min-height:90px;font:13px/1.4 ui-monospace,monospace;padding
         <div class="big" id="rBig">-</div>
         <div><span class="best" id="rBest">-</span></div>
         <div class="sub" id="rBe"></div>
+        <div class="sub" id="rSrc"></div>
 
         <svg width="0" height="0" style="position:absolute" aria-hidden="true">
           <defs>
@@ -170,6 +171,8 @@ textarea{width:100%;min-height:90px;font:13px/1.4 ui-monospace,monospace;padding
       <fieldset>
         <legend>거래소 시세</legend>
         <div class="row"><label for="pN">일반 보석 사는 가격<small>직접 캔 거라도 팔면 받을 값으로 넣기</small></label><div class="field"><input id="pN" type="number" min="0" step="0.1" value="16"><span>만</span></div></div>
+        <div class="row"><label for="pO">원석 사는 가격 (1개)<small>0이면 원석은 계산에서 빼요</small></label><div class="field"><input id="pO" type="number" min="0" step="0.01" value="0"><span>만</span></div></div>
+        <div class="row"><label for="fR">원석 10개 제련비<small>NPC 제련 수수료</small></label><div class="field"><input id="fR" type="number" min="0" step="0.01" value="0.5"><span>만</span></div></div>
         <div class="row"><label for="pL">하급 판매가</label><div class="field"><input id="pL" type="number" min="0" step="0.1" value="8"><span>만</span></div></div>
         <div class="row"><label for="pM">중급 판매가</label><div class="field"><input id="pM" type="number" min="0" step="0.1" value="90"><span>만</span></div></div>
         <div class="row"><label for="pH">상급 판매가</label><div class="field"><input id="pH" type="number" min="0" step="0.1" value="1300"><span>만</span></div></div>
@@ -203,8 +206,8 @@ textarea{width:100%;min-height:90px;font:13px/1.4 ui-monospace,monospace;padding
 <script>
 {
 const $=id=>document.getElementById(id);
-const ids=['name','n','pN','pL','pM','pH','f1','f2','f3','fee','q1','q2','q3','s1','s2'];
-const PRICE=['name','n','pN','pL','pM','pH'];
+const ids=['name','n','pN','pO','fR','pL','pM','pH','f1','f2','f3','fee','q1','q2','q3','s1','s2'];
+const PRICE=['name','n','pN','pO','pL','pM','pH'];
 const DEF={};ids.forEach(i=>DEF[i]=$(i).value);
 const KEY='gemcalc-v2',OLD='gemcalc-v1';
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -238,15 +241,16 @@ function parse(get,warn){
   if(warn)$('qWarn').textContent=Math.abs(sum-100)>0.01?`세 확률의 합이 ${+sum.toFixed(2)}%예요. 100%에 맞춰 비율대로 계산했어요.`:'';
   const t=sum>0?sum:1;
   return{name:String(get('name')||'').trim()||'보석',n:Math.max(1,Math.round(num('n'))),
-   pN:num('pN'),pL:num('pL'),pM:num('pM'),pH:num('pH'),f1:num('f1'),f2:num('f2'),f3:num('f3'),
+   pN:num('pN'),pO:num('pO'),fR:num('fR'),pL:num('pL'),pM:num('pM'),pH:num('pH'),f1:num('f1'),f2:num('f2'),f3:num('f3'),
    k:1-Math.min(100,Math.max(0,num('fee')))/100,
    q1:q1/t,q2:q2/t,q3:q3/t,s1:Math.min(1,Math.max(.01,num('s1')/100)),s2:Math.min(1,Math.max(.01,num('s2')/100))};
 }
+function withCost(v){const c=[];if(v.pN>0)c.push(['일반',v.pN]);if(v.pO>0)c.push(['원석',v.pO*10+v.fR]);c.sort((a,b)=>a[1]-b[1]);v.src=c.length?c[0][0]:'일반';v.cost=c.length?c[0][1]:0;v.alt=c[1]||null;return v}
 function ev(st,v){
   let L=v.q1,M=v.q2,H=v.q3,fees=v.f1;
   if(st.up1){const per=1+9*v.s1;M+=L*v.s1/per;fees+=L*v.f2/per;L=0}
   if(st.up2){const per=1+9*v.s2;H+=M*v.s2/per;fees+=M*v.f3/per;M=0}
-  return{profit:v.k*(L*v.pL+M*v.pM+H*v.pH)-v.pN-fees,L,M,H};
+  return{profit:v.k*(L*v.pL+M*v.pM+H*v.pH)-v.cost-fees,L,M,H};
 }
 const bestOf=v=>STRATS.map(s=>({s,e:ev(s,v)})).reduce((a,b)=>b.e.profit>a.e.profit?b:a);
 function sim(st,v,N,R){
@@ -256,7 +260,7 @@ function sim(st,v,N,R){
     for(let i=0;i<N;i++){const x=Math.random();if(x<v.q1)L++;else if(x<v.q1+v.q2)M++;else H++}
     if(st.up1)while(L>=10){fees+=v.f2;if(Math.random()<v.s1){L-=10;M++}else L--}
     if(st.up2)while(M>=10){fees+=v.f3;if(Math.random()<v.s2){M-=10;H++}else M--}
-    hSum+=H;out[r]=v.k*(L*v.pL+M*v.pM+H*v.pH)-N*v.pN-fees;
+    hSum+=H;out[r]=v.k*(L*v.pL+M*v.pM+H*v.pH)-N*v.cost-fees;
   }
   out.sort();return{arr:out,avgH:hSum/R};
 }
@@ -270,21 +274,22 @@ const cnt=x=>x>=100?Math.round(x).toLocaleString('ko-KR'):(+x.toFixed(x<1?2:1)).
 
 function renderLib(){
   const c=cur();
-  $('chips').innerHTML=store.gems.map(g=>{const v=parse(i=>g.v[i]);return `<button type="button" class="chip${g.id===c.id?' on':''}" data-id="${g.id}">${esc(v.name)}<small>상급 ${fmt(v.pH,false)}</small></button>`}).join('')+'<button type="button" class="chip add" id="add">+ 보석 추가</button>';
-  $('ovb').innerHTML=store.gems.map(g=>{const v=parse(i=>g.v[i]),b=bestOf(v);
-    return `<tr data-id="${g.id}" class="${g.id===c.id?'cur':''}"><td>${esc(v.name)}</td><td class="n">${fmt(v.pN,false)}</td><td class="n">${fmt(v.pL,false)}</td><td class="n">${fmt(v.pM,false)}</td><td class="n">${fmt(v.pH,false)}</td><td>${b.s.name}</td><td class="n ${cls(b.e.profit)}">${fmt(b.e.profit)}</td></tr>`}).join('');
+  $('chips').innerHTML=store.gems.map(g=>{const v=withCost(parse(i=>g.v[i]));return `<button type="button" class="chip${g.id===c.id?' on':''}" data-id="${g.id}">${esc(v.name)}<small>상급 ${fmt(v.pH,false)}</small></button>`}).join('')+'<button type="button" class="chip add" id="add">+ 보석 추가</button>';
+  $('ovb').innerHTML=store.gems.map(g=>{const v=withCost(parse(i=>g.v[i])),b=bestOf(v);
+    return `<tr data-id="${g.id}" class="${g.id===c.id?'cur':''}"><td>${esc(v.name)}</td><td class="n">${v.pO>0?(v.src==='원석'?'<b>':'')+fmt(v.pO*10+v.fR,false)+(v.src==='원석'?'</b>':''):'-'}</td><td class="n">${v.src==='일반'&&v.pO>0?'<b>'+fmt(v.pN,false)+'</b>':fmt(v.pN,false)}</td><td class="n">${fmt(v.pL,false)}</td><td class="n">${fmt(v.pM,false)}</td><td class="n">${fmt(v.pH,false)}</td><td>${b.s.name}</td><td class="n ${cls(b.e.profit)}">${fmt(b.e.profit)}</td></tr>`}).join('');
 }
 
 let last=null,timer=null;
 function render(){
-  const v=parse(i=>$(i).value,true);
+  const v=withCost(parse(i=>$(i).value,true));
   const res=STRATS.map(s=>({s,e:ev(s,v)}));
   const best=res.reduce((a,b)=>b.e.profit>a.e.profit?b:a);
   const p=best.e.profit;
   $('rTitle').textContent=`${v.name} 일반 1개 깎을 때 기대 이익`;
   $('rBig').textContent=fmt(p);$('rBig').className='big '+cls(p);
   $('rBest').textContent='추천: '+best.s.name;
-  $('rBe').textContent=`일반 ${v.name}을(를) ${fmt(v.pN+p,false)} 이하로 사면 본전 이상이에요.`;
+  const be=v.cost+p;$('rBe').textContent=`일반 ${v.name} 1개를 ${fmt(be,false)} 이하에 마련하면 본전 이상이에요.`+(v.pO>0?` 원석이면 개당 ${fmt(Math.max(0,(be-v.fR)/10),false)} 이하예요.`:'');
+  $('rSrc').textContent=v.alt?`매입: ${v.src==='원석'?`원석 10개 제련(${fmt(v.cost,false)})이 일반 구매(${fmt(v.alt[1],false)})보다 싸서 원석 기준으로 계산했어요.`:`일반 구매(${fmt(v.cost,false)})가 원석 10개 제련(${fmt(v.alt[1],false)})보다 싸서 일반 기준으로 계산했어요.`}`:(v.pO>0&&!(v.pN>0)?`매입: 원석 10개 제련(${fmt(v.cost,false)}) 기준이에요.`:'');
   const N=v.n,e=best.e;
   const gem=[['일반',N,'#9aa3b2',40],['하급',e.L*N,'#7fb3ff',48],['중급',e.M*N,'#2457d6',58],['상급',e.H*N,'var(--ruby)',70]];
   $('gems').innerHTML=gem.map(g=>`<div><svg width="${g[3]}" height="${g[3]*.9}" style="color:${g[2]}"><use href="#gem"/></svg><b>${g[0]==='일반'?N.toLocaleString('ko-KR'):cnt(g[1])}</b><i>${g[0]}</i></div>`).join('');
@@ -335,24 +340,24 @@ $('imp').addEventListener('click',()=>{
 });
 $('copy').addEventListener('click',async()=>{
   if(!last)return;const{v,best}=last,s=last.sim||{};
-  const t=`[${v.name} 깎기 계산]\n시세: 일반 ${fmt(v.pN,false)} / 하급 ${fmt(v.pL,false)} / 중급 ${fmt(v.pM,false)} / 상급 ${fmt(v.pH,false)}\n추천: ${best.s.name}\n1개당 기대 이익: ${fmt(best.e.profit)}\n${v.n}개 기대 이익: ${fmt(best.e.profit*v.n)}`+(s.N?`\n손해 볼 확률(${s.N}개 기준): ${+s.lp.toFixed(1)}%  (운 나쁠 때 ${fmt(s.p10)} ~ 좋을 때 ${fmt(s.p90)})`:'')+`\n본전 매입가: 일반 ${fmt(v.pN+best.e.profit,false)} 이하\nhttps://stonegame-771.pages.dev/gem-calc`;
+  const t=`[${v.name} 깎기 계산]\n시세: 일반 ${fmt(v.pN,false)}${v.pO>0?` / 원석 ${fmt(v.pO,false)}(10개+제련 ${fmt(v.pO*10+v.fR,false)})`:''} / 하급 ${fmt(v.pL,false)} / 중급 ${fmt(v.pM,false)} / 상급 ${fmt(v.pH,false)}\n추천: ${best.s.name}\n1개당 기대 이익: ${fmt(best.e.profit)}\n${v.n}개 기대 이익: ${fmt(best.e.profit*v.n)}`+(s.N?`\n손해 볼 확률(${s.N}개 기준): ${+s.lp.toFixed(1)}%  (운 나쁠 때 ${fmt(s.p10)} ~ 좋을 때 ${fmt(s.p90)})`:'')+`\n매입: ${v.src} 기준 / 본전 매입가: 일반 ${fmt(v.cost+best.e.profit,false)} 이하\nhttps://stonegame-771.pages.dev/gem-calc`;
   try{await navigator.clipboard.writeText(t);$('copyMsg').textContent='복사했어요. 카톡에 붙여넣으면 돼요.'}
   catch(e){$('copyMsg').style.whiteSpace='pre-line';$('copyMsg').textContent='복사가 막혀 있어요. 아래 내용을 직접 복사해 주세요:\n'+t}
 });
 const PRESET=[
- ['다이아몬드',3.3,0.01,17.3,388,'g'],['사파이어',0.04,0.01,12.4,353,'g'],['가넷',0.05,0.01,12.5,359,'g'],['오팔',27.8,0.1,58,869,'g'],
- ['자수정',0.1,0.01,12,323,'g'],['아쿠아마린',1.2,1.9,89.9,12,'g'],['토파즈',0.07,0.01,12,366,'g'],['에메랄드',0.09,0.03,0.08,150,'g'],
- ['힘의 크리스탈',10.2,0.06,42,759,'c'],['지혜의 크리스탈',5.4,0.03,38.9,680,'c'],['행운의 크리스탈',27.9,2.39,83,1300,'c'],['민첩성의 크리스탈',27.3,2.5,83,1280,'c']];
+ ['다이아몬드',0.21,3.3,0.01,17.3,388,'g'],['사파이어',0.05,0.04,0.01,12.4,353,'g'],['가넷',0.015,0.05,0.005,12.5,359,'g'],['오팔',2.42,27.8,0.6,58,869,'g'],
+ ['자수정',0.047,0.1,0.01,12,323,'g'],['아쿠아마린',0.17,1.2,1.88,65.6,3.8,'g'],['토파즈',0.05,0.07,0.01,14.5,366,'g'],['에메랄드',0.026,0.09,0.03,0.08,150,'g'],
+ ['힘의 크리스탈',0.76,10.2,0.06,50,759,'c'],['지혜의 크리스탈',0.45,5.4,0.03,38.9,680,'c'],['행운의 크리스탈',2.24,24.8,2.7,76.9,1170,'c'],['민첩성의 크리스탈',2.3,30,3.15,86.5,1300,'c']];
 const PROB={g:['71','24.5','4.5'],c:['79','20','1']};
 $('preset').addEventListener('click',()=>{
   let added=0,upd=0;
-  for(const [nm,pN,pL,pM,pH,t] of PRESET){
+  for(const [nm,pO,pN,pL,pM,pH,t] of PRESET){
     let g=store.gems.find(x=>(x.v.name||'').replace(/\s*\(예시\)$/,'')===nm);
     if(!g){g={id:uid(),v:{...DEF,name:nm}};store.gems.push(g);added++}else upd++;
-    Object.assign(g.v,{pN:String(pN),pL:String(pL),pM:String(pM),pH:String(pH),q1:PROB[t][0],q2:PROB[t][1],q3:PROB[t][2],s1:'90',s2:'30'});
+    Object.assign(g.v,{pO:String(pO),fR:g.v.fR||'0.5',pN:String(pN),pL:String(pL),pM:String(pM),pH:String(pH),q1:PROB[t][0],q2:PROB[t][1],q3:PROB[t][2],s1:'90',s2:'30'});
   }
   store.gems=store.gems.filter(g=>!/\(예시\)$/.test(g.v.name||''));
-  select(store.gems.find(g=>g.v.name==='오팔').id);persist(`11/20 템차트 시세(고정값)로 ${added}개 추가, ${upd}개 갱신`);
+  select(store.gems.find(g=>g.v.name==='오팔').id);persist(`11/24 템차트 시세(고정값)로 ${added}개 추가, ${upd}개 갱신`);
 });
 toForm(cur());render();
 
