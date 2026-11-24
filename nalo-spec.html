@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>나로 스펙업 가성비</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 친구한테 건네는 스펙업 처방전 — 숫자 위주, 담백
+   IDEA: 결론 카드 + 순위표, 표창처럼 순위 뱃지
+   PICTURE: 럭 1당 메소 막대 순위
+   COLOUR and TYPE: 흰/밤 바탕, 사파이어 블루 강조 / Black Han Sans 제목 + Noto Sans KR
+   LAYOUT: 한 컬럼, 표는 모바일에서 가로 스크롤 */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#121318);--card:light-dark(#f4f6fa,#1c1e25);--line:light-dark(#dde2ea,#2c2f38);--ink:light-dark(#17181c,#eceef2);--mute:light-dark(#5b6170,#a2a8b6);--acc:light-dark(#2457d6,#7aa2ff);--good:light-dark(#1d8f5a,#3ecf8e)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Noto Sans KR",system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:920px;margin:0 auto;padding:clamp(24px,4vw,52px) max(5vw,16px)}
+h1{font:400 clamp(30px,5vw,44px)/1.1 "Black Han Sans",sans-serif;margin:0 0 6px}
+h2{font-size:21px;margin:40px 0 8px}
+.sub{color:var(--mute);font-size:14px;margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+ol.top{margin:8px 0 0;padding-left:22px}ol.top li{margin:6px 0}
+b.g{color:var(--good)}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px;margin-top:8px}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:13px;color:var(--mute);font-weight:500;white-space:nowrap}
+td.n,th.n{text-align:right;white-space:nowrap}
+.bars{margin-top:12px}
+.bar{display:grid;grid-template-columns:minmax(0,13em) minmax(0,1fr) 5.5em;gap:10px;align-items:center;margin:6px 0;font-size:14px}
+.bar .t{height:14px;border-radius:7px;background:var(--line);overflow:hidden}
+.bar .t div{height:100%;background:var(--mute)}
+.bar.hi .t div{background:var(--acc)}
+.bar .v{text-align:right;white-space:nowrap}
+ul{padding-left:20px}li{margin:4px 0}
+.note{color:var(--mute);font-size:13px}
+a{color:var(--acc)}
+@media(max-width:600px){table{font-size:13px}.bar{grid-template-columns:minmax(0,9em) minmax(0,1fr) 4.5em;font-size:13px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>나로 스펙업 가성비 정리</h1>
+<p class="sub">2026-11-24 템차트 시세 기준 · 드퍼슬 나로 (럭 649, 총공 약 111)</p>
+
+<div class="card">
+<b>결론: 장비는 업횟이 다 소진돼서, 덱스 정리와 무기 메이커 보석이 가성비 1·2순위예요.</b>
+<ol class="top">
+<li><b>덱스 오버 정리</b>: 순덱 약 17 과투자 → 럭으로 돌리면 <b class="g">딜 +2.6%</b> (AP 재분배 비용만)</li>
+<li><b>드퍼슬에 중급 다이아 + 하급 행크</b>: 약 520만 → <b class="g">딜 +2.1%</b></li>
+<li>여유 되면 무기를 <b>상급 다이아</b>로: 966만~1,115만 → <b class="g">딜 +3.0~3.2%</b></li>
+<li><b>자쿰 투구에 행크+민크</b> (AP 재분배 가능할 때): 431만~738만 → 딜 +0.6~0.9%</li>
+<li><b>카티·와이어스·가티나에 중급 행크</b>: 부위당 502만 → 딜 +0.5%씩</li>
+</ol>
+<p class="note" style="margin:10px 0 0">1·2번만 해도 약 520만으로 딜 약 +4.7%예요. 2번 대신 3번이면 약 1,100만으로 약 +5.8%예요.</p>
+</div>
+
+<h2>현재 스펙 진단</h2>
+<p><b>공 1 ≈ 럭 5.8</b>이에요. 스탯창(럭 649, 최대 공격력 2,813)으로 역산한 총공이 약 111이라, 럭 1은 딜 +0.15%, 공 1은 딜 +0.9%예요.</p>
+<p><b>덱스가 약 17 남아요.</b> 드퍼슬은 요구 덱 150이고, 부분스왑으로 140제 방어구의 덱을 부위당 10까지 요구치에 쓸 수 있어요. 카티(덱 8)와 가티나(덱 9)를 통째로 쓸 수 있어서 순덱 106이면 충분한데, 지금 순덱이 123이에요. 메용 켠 상태로 카티 → 드퍼슬 → 가티나 순서로 착용하면 돼요.</p>
+<div class="scroll"><table>
+<thead><tr><th>부위</th><th>아이템</th><th>주요 옵션</th><th>남은 업횟</th><th>메이커 보석</th></tr></thead>
+<tbody>
+<tr><td>무기</td><td>드래곤 퍼플 슬레브 (+3)</td><td>공 59, 럭 8</td><td>0</td><td>가능 (다이아·행크)</td></tr>
+<tr><td>모자</td><td>자쿰의 투구</td><td>올스탯 15</td><td>10 (노작)</td><td>가능</td></tr>
+<tr><td>전신</td><td>레드 카티나스 (+6)</td><td>럭 18, 덱 8</td><td>0</td><td>가능</td></tr>
+<tr><td>장갑</td><td>골드 와이어스 (+5)</td><td>공 10, 럭 4</td><td>0</td><td>가능</td></tr>
+<tr><td>신발</td><td>블루 가티나부츠 (+4)</td><td>덱 9, 럭 2</td><td>0</td><td>가능</td></tr>
+<tr><td>망토</td><td>이카루스의 망토 (+4)</td><td>럭 10</td><td>0</td><td>불가</td></tr>
+<tr><td>귀고리</td><td>장미꽃 귀고리 (+4)</td><td>럭 9</td><td>0</td><td>불가</td></tr>
+<tr><td>벨트</td><td>파란색 허리띠</td><td>올스탯 3</td><td>3 (노작)</td><td>불가</td></tr>
+<tr><td>펜던트</td><td>나리케인의 징표</td><td>공 4, 럭 5</td><td>-</td><td>불가</td></tr>
+</tbody></table></div>
+
+<h2>가성비 순위 (럭 1 올리는 데 드는 메소)</h2>
+<p>비용 = 보석 값 + 메이커 부여 수수료(장비당 기본 275만 + 하급 75만 · 중급 150만 · 상급 225만)이에요. 공은 럭 5.8로 환산했어요.</p>
+<div class="bars" id="bars"></div>
+<div class="scroll"><table>
+<thead><tr><th>순위</th><th>스펙업</th><th class="n">비용</th><th>오르는 것</th><th class="n">럭 1당</th><th class="n">딜</th></tr></thead>
+<tbody id="tb"></tbody></table></div>
+<p class="note">보석 시세: 하급 다이아 거의 0, 중급 다이아 17만, 상급 다이아 388만, 하급 행크 2.7만, 중급 행크 77만, 상급 행크 1,170만, 하급 민크 3만, 중급 민크 87만. 장비 교체 가격은 최근 30일 거래 1~3건 기준이라 참고용이에요.</p>
+
+<h2>예산별 플랜</h2>
+<div class="scroll"><table>
+<thead><tr><th>예산</th><th>할 것</th><th class="n">총비용</th><th class="n">딜 (AP 재분배 가능)</th><th class="n">딜 (불가)</th></tr></thead>
+<tbody>
+<tr><td>약 500만</td><td>덱스 정리 + 무기 중급 다이아·하급 행크</td><td class="n">520만</td><td class="n">+4.7%</td><td class="n">+2.1%</td></tr>
+<tr><td>약 1,000만</td><td>덱스 정리 + 무기 상급 다이아·하급 행크</td><td class="n">966만</td><td class="n">+5.6%</td><td class="n">+3.0%</td></tr>
+<tr><td>약 2,000만</td><td>위 + 자쿰 하급 행크·하급 민크 + 카티 중급 행크</td><td class="n">1,899만</td><td class="n">+6.7%</td><td class="n">+3.9%</td></tr>
+<tr><td>약 3,000만</td><td>위 + 와이어스·가티나 중급 행크</td><td class="n">2,903만</td><td class="n">+7.6%</td><td class="n">+4.8%</td></tr>
+</tbody></table></div>
+<ul>
+<li>AP 재분배가 안 되면 덱스 정리와 자쿰 민크는 빼고, 그 돈으로 자쿰에도 중급 행크를 넣으면 돼요.</li>
+<li>무기 남는 한 칸은 하급 자수정(이동속도 +2, 75만) 정도라 선택사항이에요.</li>
+<li>메이커 보석은 장비당 한 번만 박을 수 있어요. 나중에 하급을 상급으로 바꿀 수 없으니, 무기는 처음부터 최종 구성으로 박는 게 좋아요.</li>
+</ul>
+
+<h2>후순위 · 비추천</h2>
+<ul>
+<li><b>상급 행크</b>: 중급 대비 럭 +2에 약 1,170만이 더 들어요 (럭 1당 약 584만).</li>
+<li><b>망토 교체</b>: 이카루스 럭 10이 2,000~2,900만이고, 럭 11은 거래가가 약 1억이에요.</li>
+<li><b>귀고리·전신 교체</b>: 럭 1당 340만~1,450만이에요.</li>
+<li><b>자쿰에 투민 주문서</b>: 60%가 장당 약 1,000만이라 럭 1당 약 840만이에요. 자쿰은 교환 불가라 작해도 팔 수 없어요.</li>
+<li><b>허리띠에 혼돈의 주문서</b>: 장당 약 1,880만이고, 올스탯 3짜리 벨트라 기대값이 크게 마이너스예요.</li>
+<li><b>무기에 민크</b>: 덱이 이미 요구치를 채우는 구조라 그냥 버려져요.</li>
+</ul>
+<p class="note">스샷에 없던 표창, 반지, 눈·얼굴 장식, 펫장비는 분석에 넣지 않았어요. 표창이 일비보다 아래라면 그쪽이 더 싼 포인트일 수 있어요.</p>
+
+<h2>계산 기준과 출처</h2>
+<ul class="note">
+<li>딜 기준: 트리플 스로우는 럭 × 총공에 비례하는 것으로 봤어요. 총공 111은 스탯창 최대 공격력에서 역산한 추정치예요.</li>
+<li>메이커 수수료: <a href="https://github.com/kyhong222/mapleland-setting-v2/pull/121">세팅 계산기</a>, <a href="https://vortexgaming.io/postdetail/1216487">메이커 공략</a> · 같은 종류 보석은 한 개만, 다이아는 무기 전용: <a href="https://vortexgaming.io/postdetail/945843">메이커 스킬 정리</a></li>
+<li>메이커 가능 부위: <a href="https://m.dcinside.com/board/mapleland/3673265">디시 정리글</a></li>
+<li>덱스 부분스왑: <a href="https://arca.live/b/mapleland/145666375">나로 드퍼슬·드그슬 세팅</a>, <a href="https://gall.dcinside.com/mgallery/board/view/?id=mapleland&no=3411643">부분스왑 설명</a> · AP 재분배 수단과 비용은 확인하지 못했어요.</li>
+<li>시세: <a href="https://itemchart.net/">템차트</a> 11/24 조회. 시세는 매일 바뀌니 살 때 다시 확인하세요.</li>
+</ul>
+</div>
+<script>
+{
+const R=[
+ ['덱스 오버 정리 (AP 재분배)','AP 재분배 비용만','럭 +17',0,'+2.6%'],
+ ['무기: 중급 다이아 + 하급 행크','520만','공 +2, 럭 +2',38,'+2.1%'],
+ ['무기: 상급 다이아 + 하급 행크','966만','공 +3, 럭 +2',49,'+3.0%'],
+ ['무기: 상급 다이아 + 중급 행크','1,115만','공 +3, 럭 +3',54,'+3.2%'],
+ ['무기: 하급 다이아 + 하급 행크','428만','공 +1, 럭 +2',55,'+1.2%'],
+ ['자쿰: 하급 행크 + 하급 민크 (AP 재분배 시)','431만','럭 +2, 덱 +2→럭',108,'+0.6%'],
+ ['자쿰: 중급 행크 + 중급 민크 (AP 재분배 시)','738만','럭 +3, 덱 +3→럭',123,'+0.9%'],
+ ['방어구 1부위: 중급 행크','502만','럭 +3',167,'+0.5%'],
+ ['방어구 1부위: 하급 행크','353만','럭 +2',176,'+0.3%'],
+ ['방어구 1부위: 상급 행크','1,670만','럭 +5',334,'+0.8%'],
+ ['전신 교체: 럭 22 레드 카티','약 1,350만','럭 +4',338,'+0.6%'],
+ ['전신 교체: 럭 23 레드 카티','약 2,250만','럭 +5',450,'+0.8%'],
+ ['귀고리 교체: 럭 10 장미꽃','약 1,450만','럭 +1',1450,'+0.2%']];
+const max=500;
+document.getElementById('tb').innerHTML=R.map((r,i)=>`<tr><td>${i+1}</td><td>${r[0]}</td><td class="n">${r[1]}</td><td>${r[2]}</td><td class="n">${r[3]===0?'거의 0':r[3].toLocaleString('ko-KR')+'만'}</td><td class="n">${r[4]}</td></tr>`).join('');
+document.getElementById('bars').innerHTML=R.slice(1,12).map((r,i)=>`<div class="bar${i<4?' hi':''}"><span>${r[0].replace(/ \(AP 재분배 시\)/,'*')}</span><div class="t"><div style="width:${Math.min(100,r[3]/max*100)}%"></div></div><span class="v">${r[3]}만/럭</span></div>`).join('')+'<p class="note">막대가 짧을수록 싸요. 파란색이 무기 보석, * 표시는 AP 재분배가 될 때만 해당해요. 귀고리 교체(1,450만/럭)는 범위 밖이라 뺐어요.</p>';
+}
+</script>
+</body>
+</html>
